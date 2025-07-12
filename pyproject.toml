@@ -1,0 +1,7 @@
+[project]
+name = "cipherscore"
+version = "0.1.0"
+description = "Tool to find points in a Block cipher implementation that are vulnerable to fault injection attacks, and quantize the exploitability"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = []
