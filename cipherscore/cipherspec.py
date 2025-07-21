@@ -133,6 +133,9 @@ class Declaration:
         if len(tokens) > 4 and tokens[4] == "{":
             for i in range(5, len(tokens)-1):
                 self.data.append(tokens[i])
+        if len(self.data) != 0 and self.len != len(self.data):
+            print(f"Error: Declaration {self.name} has length {self.len}, but {len(self.data)} elements given")
+            exit()
 
     def __str__(self) -> str:
         if len(self.data) == 0:

@@ -19,16 +19,16 @@ def test_declarations_parser():
     try_parsing(parser, """<declaration></declaration>""")
     try_parsing(parser, """<declaration> SBOX[123] </declaration>""")
     try_parsing(parser, """<declaration> SBOX[123] KEY[16] </declaration>""")
-    try_parsing(parser, """<declaration> SBOX[123] { 63 7c 77 } KEY[16] </declaration>""")
-    try_parsing(parser, """<declaration> SBOX[123] KEY[16] { ab cd ef } </declaration>""")
+    try_parsing(parser, """<declaration> SBOX[3] { 63 7c 77 } KEY[16] </declaration>""")
+    try_parsing(parser, """<declaration> SBOX[123] KEY[3] { ab cd ef } </declaration>""")
     declarations = try_parsing(parser, \
-            """<declaration> SBOX[123] { 63 7c 77 } KEY[16] { ab cd ef } </declaration>""")
+            """<declaration> SBOX[3] { 63 7c 77 } KEY[3] { ab cd ef } </declaration>""")
     assert len(declarations) == 2
     assert declarations[0].name == "SBOX"
-    assert declarations[0].len == 123
+    assert declarations[0].len == 3
     assert declarations[0].data == ["63", "7c", "77"]
     assert declarations[1].name == "KEY"
-    assert declarations[1].len == 16
+    assert declarations[1].len == 3
     assert declarations[1].data == ["ab", "cd", "ef"]
 
 def test_operations_parser():
