@@ -36,7 +36,8 @@ def operations_parser() -> ParserElement:
     """"Returns a parser for Operations (User defined functions)"""
     name                = Word(alphas, alphanums + "_")
     function_name       = Group("F_" + name)
-    constant            = (Literal("'") + Word(alphanums) + Literal("'")) ^ Word(nums)
+    constant            = (Literal("'").suppress() + Word(alphanums) + Literal("'").suppress())     \
+                            ^ Word(nums)
     variable            = name
     variable_bit        = variable + "_[" + OneOrMore(Word(nums)) + "]"
     prototype_arg       = Group(variable_bit ^ variable ^ constant)
@@ -74,7 +75,8 @@ def operations_parser() -> ParserElement:
 def rounds_parser() -> ParserElement:
     """"Returns a parser for Rounds of the cipher"""
     name                = Word(alphas, alphanums + "_")
-    constant            = (Literal("'") + Word(alphanums) + Literal("'")) ^ Word(nums)
+    constant            = (Literal("'").suppress() + Word(alphanums) + Literal("'").suppress())     \
+                            ^ Word(nums)
     function_name       = Group("F_" + name)
     linearity           = oneOf("linear nonlinear")
     round_function_name = Group(Literal("F") + Word(nums))
@@ -84,9 +86,8 @@ def rounds_parser() -> ParserElement:
                                 + Optional("_[" + bit_range + "]"))
     function_call       = Forward()
     function_arg        = Group(function_call) | part_name | constant
-    function_call       << function_name + Group("(" + function_arg 
-                                                 + ZeroOrMore(Literal(",").suppress()
-                                                              + function_arg) + ")")
+    function_call       << function_name + "(" + Group(function_arg \
+                                + ZeroOrMore(Literal(",").suppress() + function_arg)) + ")"
     part_used           = Optional("(")                                                             \
                             + Group(part_name + ZeroOrMore(Literal(",").suppress()
                                                            + part_name))                            \
@@ -110,6 +111,7 @@ def cipher_parser() -> ParserElement:
                         + Optional(operations)                                                      \
                         + rounds                                                                    \
                         + Literal("<end>").suppress()
+    cipher          = cipher.add_parse_action(CipherSpec)
     return cipher
 
 #################################################################################################
@@ -143,6 +145,69 @@ class Declaration:
         else:
             return "Declaration: " + self.name + "[" + str(self.len) + "] {" + ", ".join(self.data) + "}"
 
+    def synthesize_c(self) -> str:
+        if len(self.data) == 0:
+            return "uint8_t " + self.name + "[" + str(self.len) + "];\n"
+        else:
+            return "uint8_t " + self.name + "[" + str(self.len) + "] = { "  \
+                + ", ".join(["0x"+x for x in self.data]) + " };\n"
+
+def synthesize_c_variable(tokens : ParserElement) -> str:
+    """Generate C code corresponding to the given variable"""
+    value : str = "".join(tokens)
+    if value[0] == "'" and value[-1] == "'":
+        return value[1,-1]
+    elif value.find("_[") != -1:
+        separator_index : int = value.find("_[")
+        bit_select : int = int(value[separator_index+2:-1])
+        byte : str = value[:separator_index]
+        return "((" + byte + ">>" + str(bit_select) + ")&1)"
+    else:
+        return value
+
+def synthesize_c_statement_tokens(tokens : ParserElement) -> str:
+    """Generate C code corresponding to the given statement tokens"""
+    if len(tokens) > 1 and tokens[1] == "(":
+        function_name = "".join(tokens[0])
+        assert tokens[3] == ")"
+        argument_tokens = tokens[2]
+        assert function_name.startswith("F")
+
+        if function_name == "F_RS":
+            assert len(argument_tokens) == 2
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
+                + ">>" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+        elif function_name == "F_LS":
+            assert len(argument_tokens) == 2
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
+                + "<<" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+        elif function_name == "F_MUL":
+            assert len(argument_tokens) == 2
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
+                + "*" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+        elif function_name == "F_AND":
+            assert len(argument_tokens) == 2
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
+                + "&" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+        elif function_name == "F_OR":
+            assert len(argument_tokens) == 2
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
+                + "|" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+        elif function_name == "F_XOR":
+            assert len(argument_tokens) == 2
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
+                + "^" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+        elif function_name == "F_LKUP":
+            assert len(argument_tokens) == 2
+            return synthesize_c_statement_tokens(argument_tokens[1])  \
+                + "[" + synthesize_c_variable(argument_tokens[0]) + "]"
+        else:
+            assert function_name.startswith("F_")
+            return function_name[2:] + "(" + ", ".join(  \
+                [synthesize_c_statement_tokens(x) for x in argument_tokens]) + ")"
+    else:
+        return synthesize_c_variable(tokens)
+
 class Statement:
     """Represents a statement in a User-defined function.
 
@@ -154,6 +219,37 @@ class Statement:
         self.tokens = tokens
     def __str__(self) -> str:
         return "".join([str(x) for x in self.tokens])
+
+    def synthesize_c(self) -> str:
+        if self.tokens[0] == "ret":
+            return "\treturn " + self.tokens[1] + ";\n"
+        elif self.tokens[0] == "<":
+            assert self.tokens[2] == ":"
+            assert self.tokens[3] == "{"
+            assert self.tokens[-2] == "}"
+            assert self.tokens[-1] == ">"
+            output_variable = self.tokens[1]
+            statement_tokens = self.tokens[4:-2]
+            # The RHS can either be a single token (variable, constant) or a variable used declaration
+            if len(self.tokens) == 1:
+                # Single token (Variable or constant)
+                pass
+            else:
+                # Variable used declaration
+                for i, token in enumerate(statement_tokens):
+                    if token == ":":
+                        break
+                if statement_tokens[i] != ":":
+                    print("Error: Incorrect variable used declaration")
+                    print(statement_tokens)
+                    assert False
+                return "\tuint8_t " + output_variable + " = "   \
+                    + synthesize_c_statement_tokens(statement_tokens[i+1:]) + ";\n"
+        else:
+            # FIXME Handle if-else and loop
+            print("Error: Unhandled statement type: ", end="")
+            print(self.tokens)
+            assert False
 
 class Operation:
     """Represents a User-defined function used in the cipher.
@@ -174,10 +270,20 @@ class Operation:
         self.statements : list[Statement]   = []
         for i in range(7, len(tokens) - 1):
             self.statements.append(Statement(tokens[i]))
+        if not self.name.startswith("F_"):
+            print(f"Error: Opertion name {self.name} must have 'F_' prefix")
+            exit()
 
     def __str__(self) -> str:
         return self.name + "(" + ", ".join(self.arguments) + ") {\n\t"      \
                 + "\n\t".join([str(x) for x in self.statements]) + "\n}"
+
+    def synthesize_c(self) -> str:
+        output = "uint8_t " + self.name[2:] + " (" + ", ".join(["uint8_t "+x for x in self.arguments]) + ") {\n"
+        for statement in self.statements:
+            output += statement.synthesize_c()
+        output += "}\n"
+        return output
 
 class Part:
     """Represents the suboperations that are part of a round in the cipher.
@@ -191,6 +297,10 @@ class Part:
 
     def __init__(self, tokens: ParserElement) -> None:
         self.tokens                     = tokens
+        assert self.tokens[0] == "<"
+        assert self.tokens[2] == ":"
+        assert self.tokens[3] == "{"
+        assert self.tokens[4] == "("
         self.output_value   : str       = "".join([str(x) for x in tokens[1]])
         self.input_values   : list[str] = []
         for input_value_token in tokens[5]:
@@ -201,6 +311,12 @@ class Part:
 
     def __str__(self) -> str:
         return self.output_value + " = F(" + ",".join(self.input_values) + ")"
+
+    # FIXME We haven't handled the case where the LHS has a bit slice
+    def synthesize_c(self) -> str:
+        if len(self.function_tokens) == 0:
+            return self.output_value + " = " + self.input_values[0] + ";"
+        return self.output_value + " = " + synthesize_c_statement_tokens(self.function_tokens) + ";"
 
 class Round:
     """Represents a Round in the cipher.
@@ -225,6 +341,11 @@ class Round:
     def __str__(self) -> str:
         return f"{self.name} : {self.linearity} : {self.type}\n\t" + "\n\t".join([str(x) for x in self.parts])
 
+    def synthesize_c(self) -> str:
+        output = "\t// Round " + self.name + "\n\t"
+        output += "\n\t".join([part.synthesize_c() for part in self.parts]) + "\n"
+        return output
+
 class CipherSpec:
     """Represents a Specification of a Block Cipher.
 
@@ -235,38 +356,50 @@ class CipherSpec:
         rounds (list[Round]) : Rounds of the cipher
     """
 
-    def __init__(self, filename: str) -> None:
-        """Reads the specification from the given file (in Block Cipher Specification Language), 
-        and constructs the CipherSpec object from it.
+    def __init__(self, tokens: ParserElement) -> None:
+        """Represents a Cipher Specification
 
-        Args:
-            filename (str) : Filename of the BCSL specification file
+        Attributes:
+            tokens (ParserElement) : Parser tokens corresponding to this round
+            declarations (list[Declaration])    : Declarations of the cipher
+            operations (list[Operation])        : Operations of the cipher
+            rounds (list[Round])                : Rounds of the cipher
         """
-        self.filename       : str = filename
+        self.tokens                             = tokens
         self.declarations   : list[Declaration] = []
         self.operations     : list[Operation]   = []
         self.rounds         : list[Round]       = []
-        try:
-            self.tokens = cipher_parser().parseFile(filename)
-            for token in self.tokens:
-                if (isinstance(token, Declaration)):
-                    self.declarations.append(token)
-                elif (isinstance(token, Operation)):
-                    self.operations.append(token)
-                elif (isinstance(token, Round)):
-                    self.rounds.append(token)
-                else:
-                    assert False, "Error in parsing"
-        except ParseException as e:
-            print("Parse error: ", end="")
-            print(e)
-            exit()
+        for token in self.tokens:
+            if (isinstance(token, Declaration)):
+                self.declarations.append(token)
+            elif (isinstance(token, Operation)):
+                self.operations.append(token)
+            elif (isinstance(token, Round)):
+                self.rounds.append(token)
+            else:
+                assert False, "Error in parsing"
 
     def __str__(self) -> str:
-        output = "# Filename      : " + self.filename
+        output = ""
         if len(self.declarations) > 0:
             output += "\n\n# Declarations  :\n" + "\n".join([str(x) for x in self.declarations])
         if len(self.operations) > 0:
             output += "\n\n# Operations    :\n" + "\n".join([str(x) for x in self.operations])
         output += "\n\n# Rounds        :\n" + "\n".join([str(x) for x in self.rounds])
+        return output
+
+    def synthesize_c(self) -> str:
+        output = "#include<stdio.h>\n#include<stdlib.h>\n#include<math.h>\n#include<stdint.h>\n\n"
+        output += "\n".join([declaration.synthesize_c() for declaration in self.declarations]) + "\n"
+        output += "\n".join([operation.synthesize_c() for operation in self.operations]) + "\n"
+
+        output += "void roundFunction(uint8_t F0[16]) {\n"
+        output += "\tuint8_t " + ", ".join([round.name+"[64]" for round in self.rounds])+ ";\n" # FIXME Length
+        output += "\n".join([round.synthesize_c() for round in self.rounds]) + "\n"
+        output += "}\n\n"
+
+        output += "int main() {\n"
+        output += "\tuint8_t pt[16] = {0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a , 0x30 , 0x8d ,0x31, 0x31 , 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34};\n\troundFunction(pt);\n"
+        output += "}"
+
         return output
