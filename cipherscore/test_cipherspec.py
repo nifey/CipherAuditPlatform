@@ -2,6 +2,7 @@
 # This file contains unit tests for BCSL parsing and synthesis
 #################################################################################################
 
+import subprocess
 from pyparsing import ParserElement, ParseException
 from .cipherspec import declarations_parser, operations_parser, rounds_parser, cipher_parser
 from .cipherspec import Declaration, Operation, Round
@@ -95,3 +96,25 @@ def test_rounds_parser():
     # Synthesis tests
     assert rounds[0].synthesize_c() == "\t// Round F2\n\tF2[1] = SBOX[F1[1]];\n\tF2[2] = (SBOX[F1[2]]^F1[3]);\n\tF2[3] = (((F1[1]>>2)&1)^(F1[2]^0x1b));\n"
     assert rounds[1].synthesize_c() == "\t// Round F3\n\tF3[1] = F2[1];\n\tF3[2] = F2[2];\n"
+
+def test_cipher_parser():
+    with open("specifications/AES_128.bcs", "r") as specfile:
+        specification = specfile.read()
+
+    # Parsing tests
+    parser = cipher_parser()
+    cipher = try_parsing(parser, specification)
+    cipher = cipher[0]
+    assert len(cipher.declarations) == 2
+    assert len(cipher.operations) == 2
+    assert len(cipher.rounds) == 4
+
+    # Synthesis tests
+    with open("test.c", "w+") as synthesis_file:
+        synthesis_file.write(cipher.synthesize_c())
+    subprocess.run(["gcc", "test.c", "-o", "test"])
+    output = subprocess.run(["./test"], capture_output=True)
+    for line in output.stdout.decode("utf-8").split("\n"):
+        if line.startswith("F4"):
+            assert "5c ad 56 37 ee db 3c 19 b9 79 82 af 1f e0 6 e4" in line
+    subprocess.run(["rm", "test.c", "test"])
