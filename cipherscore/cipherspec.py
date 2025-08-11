@@ -14,12 +14,12 @@
 #################################################################################################
 # Parsers and the Grammar of BCSL
 #################################################################################################
-from pyparsing import ParserElement, ParseException, Group, Forward
+from pyparsing import ParserElement, ParseResults, ParseException, Group, Forward
 from pyparsing import Literal, OneOrMore, ZeroOrMore, Optional, oneOf
 from pyparsing import Word, alphas, alphanums, nums, hexnums
 
 def declarations_parser() -> ParserElement:
-    """"Returns a parser for Declarations (Constant lookup tables and data)"""
+    """Returns a parser for Declarations (Constant lookup tables and data)"""
     name                = Word(alphas, alphanums + "_")
     declaration_name    = name
     declaration_len     = OneOrMore(Word(nums))
@@ -33,23 +33,16 @@ def declarations_parser() -> ParserElement:
     return declarations
 
 def operations_parser() -> ParserElement:
-    """"Returns a parser for Operations (User defined functions)"""
+    """Returns a parser for Operations (User defined functions)"""
     name                = Word(alphas, alphanums + "_")
     function_name       = Group("F_" + name)
     constant            = (Literal("'").suppress() + Word(alphanums) + Literal("'").suppress())     \
                             ^ Word(nums)
-    variable            = name
-    variable_bit        = variable + "_[" + OneOrMore(Word(nums)) + "]"
-    prototype_arg       = Group(variable_bit ^ variable ^ constant)
+    variable            = name + Optional("_[" + OneOrMore(Word(nums)) + "]")
+    prototype_arg       = Group(variable ^ constant)
     prototype_args      = prototype_arg + ZeroOrMore(Literal(",").suppress() + prototype_arg)
     prototype           = function_name + "(" + Group(prototype_args) + ")"
-    variable_used       = Group(Optional("(") + (variable_bit ^ variable)
-                                + ZeroOrMore("," + (variable_bit ^ variable)) + Optional(")"))      \
-                            + ":" + prototype
-
-    stmt                = Group("<" + variable + ":" + "{"
-                                + OneOrMore(variable_bit ^ variable_used ^ variable)
-                                + "}" + ">")
+    stmt                = Group("<" + variable + ":" + OneOrMore(prototype ^ variable) + ">")
     ret_stmt            = Group("ret" + variable)
     exit_stmt           = Group(Literal("<exit>"))
 
@@ -73,9 +66,10 @@ def operations_parser() -> ParserElement:
     return operations
 
 def rounds_parser() -> ParserElement:
-    """"Returns a parser for Rounds of the cipher"""
+    """Returns a parser for Rounds of the cipher"""
     name                = Word(alphas, alphanums + "_")
-    constant            = (Literal("'").suppress() + Word(alphanums) + Literal("'").suppress())     \
+    constant            = Group(Literal("'").suppress() + Word(alphanums)                           \
+                                + Literal("'").suppress())                                          \
                             ^ Word(nums)
     function_name       = Group("F_" + name)
     linearity           = oneOf("linear nonlinear")
@@ -88,11 +82,7 @@ def rounds_parser() -> ParserElement:
     function_arg        = Group(function_call) | part_name | constant
     function_call       << function_name + "(" + Group(function_arg \
                                 + ZeroOrMore(Literal(",").suppress() + function_arg)) + ")"
-    part_used           = Optional("(")                                                             \
-                            + Group(part_name + ZeroOrMore(Literal(",").suppress()
-                                                           + part_name))                            \
-                            + Optional(")") + Optional(":" + function_call)
-    part                = "<" + part_name + ":" + "{" + part_used + "}" + ">"
+    part                = "<" + part_name + ":" + ( part_name ^ function_call ) + ">"
     part                = part.add_parse_action(Part)
     round               = "<" + round_function_name + ">" + "<" + linearity + ">"                   \
                             + "<" + round_type + ">"                                                \
@@ -102,7 +92,7 @@ def rounds_parser() -> ParserElement:
     return rounds
 
 def cipher_parser() -> ParserElement:
-    """"Returns a parser for the Cipher encoded in BCSL"""
+    """Returns a parser for the Cipher encoded in BCSL"""
     declarations    = declarations_parser()
     operations      = operations_parser()
     rounds          = rounds_parser()
@@ -206,6 +196,9 @@ def synthesize_c_statement_tokens(tokens : ParserElement) -> str:
             return function_name[2:] + "(" + ", ".join(  \
                 [synthesize_c_statement_tokens(x) for x in argument_tokens]) + ")"
     else:
+        if isinstance(tokens, list):
+            assert len(tokens) == 1 and isinstance(tokens[0], ParseResults)
+            tokens = tokens[0]
         return synthesize_c_variable(tokens)
 
 class Statement:
@@ -225,26 +218,11 @@ class Statement:
             return "\treturn " + self.tokens[1] + ";\n"
         elif self.tokens[0] == "<":
             assert self.tokens[2] == ":"
-            assert self.tokens[3] == "{"
-            assert self.tokens[-2] == "}"
             assert self.tokens[-1] == ">"
             output_variable = self.tokens[1]
-            statement_tokens = self.tokens[4:-2]
-            # The RHS can either be a single token (variable, constant) or a variable used declaration
-            if len(self.tokens) == 1:
-                # Single token (Variable or constant)
-                pass
-            else:
-                # Variable used declaration
-                for i, token in enumerate(statement_tokens):
-                    if token == ":":
-                        break
-                if statement_tokens[i] != ":":
-                    print("Error: Incorrect variable used declaration")
-                    print(statement_tokens)
-                    assert False
-                return "\tuint8_t " + output_variable + " = "   \
-                    + synthesize_c_statement_tokens(statement_tokens[i+1:]) + ";\n"
+            statement_tokens = self.tokens[3:-1]
+            return "\tuint8_t " + output_variable + " = "   \
+                + synthesize_c_statement_tokens(statement_tokens) + ";\n"
         else:
             # FIXME Handle if-else and loop
             print("Error: Unhandled statement type: ", end="")
@@ -291,7 +269,6 @@ class Part:
     Attributes:
         tokens (ParserElement) : Parser tokens corresponding to this Part
         output_value (str) : The value to which this Part is assigning
-        input_values (list[str]) : The values which are input to the evaluated functions
         function_tokens (list[ParserElement]) : (Optional) Parser tokens corresponding to the function
     """
 
@@ -299,15 +276,8 @@ class Part:
         self.tokens                     = tokens
         assert self.tokens[0] == "<"
         assert self.tokens[2] == ":"
-        assert self.tokens[3] == "{"
-        assert self.tokens[4] == "("
         self.output_value   : str       = "".join([str(x) for x in tokens[1]])
-        self.input_values   : list[str] = []
-        for input_value_token in tokens[5]:
-            self.input_values.append("".join([str(x) for x in input_value_token]))
-        self.function_tokens            = []
-        if str(tokens[7]) == ":":
-            self.function_tokens        = tokens[8:len(tokens)-2]
+        self.function_tokens            = tokens[3:len(tokens)-1]
 
     def __str__(self) -> str:
         return self.output_value + " = F(" + ",".join(self.input_values) + ")"
@@ -393,13 +363,17 @@ class CipherSpec:
         output += "\n".join([declaration.synthesize_c() for declaration in self.declarations]) + "\n"
         output += "\n".join([operation.synthesize_c() for operation in self.operations]) + "\n"
 
-        output += "void roundFunction(uint8_t F0[16]) {\n"
+        output += "void encrypt(uint8_t F0[16], uint8_t ciphertext[16]) {\n"
         output += "\tuint8_t " + ", ".join([round.name+"[64]" for round in self.rounds])+ ";\n" # FIXME Length
         output += "\n".join([round.synthesize_c() for round in self.rounds]) + "\n"
+
+        for i in range(len(self.rounds) + 1):
+            output += "\tprintf(\"\\nF" + str(i) + "\\t\");\n\tfor (int i=0; i<16; i++)\n\t\tprintf(\"%x \", F" + str(i) + "[i]);\n"
+        output += "\tfor (int i=0; i<16; i++)\n\t\tciphertext[i] = F" + str(len(self.rounds)) + "[i];\n"
         output += "}\n\n"
 
         output += "int main() {\n"
-        output += "\tuint8_t pt[16] = {0x32, 0x43, 0xf6, 0xa8, 0x88, 0x5a , 0x30 , 0x8d ,0x31, 0x31 , 0x98, 0xa2, 0xe0, 0x37, 0x07, 0x34};\n\troundFunction(pt);\n"
+        output += "\tuint8_t plaintext[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05 , 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};\n\tuint8_t ciphertext[16];\n\tencrypt(plaintext, ciphertext);\n\tprintf(\"\\nFinal\\t\");\n\tfor (int i=0;i<16;i++)\n\t\tprintf(\"%x \", ciphertext[i]);\n"
         output += "}"
 
         return output
