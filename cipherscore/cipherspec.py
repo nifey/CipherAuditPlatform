@@ -61,9 +61,9 @@ def operations_parser() -> ParserElement:
                             + Optional(ret_stmt ^ exit_stmt)                                        \
                             + "</func>"
     operation           = operation.add_parse_action(Operation)
-    operations          = Literal("<operations>").suppress()                                        \
+    operations          = Literal("<operation>").suppress()                                         \
                             + ZeroOrMore(operation)                                                 \
-                            + Literal("</operations>").suppress()
+                            + Literal("</operation>").suppress()
     return operations
 
 def rounds_parser() -> ParserElement:

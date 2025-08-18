@@ -40,8 +40,8 @@ def test_declarations():
 def test_operations():
     # Parsing tests
     parser = operations_parser()
-    try_parsing(parser, """<operations></operations>""")
-    operations = try_parsing(parser, """<operations>
+    try_parsing(parser, """<operation></operation>""")
+    operations = try_parsing(parser, """<operation>
             <func> < F_MUL2 ( a ) >
                 < h : F_RS ( a , 7 ) >
                 < t : F_LS ( a , 1 ) >
@@ -54,7 +54,7 @@ def test_operations():
                 < c : F_MUL ( a, b ) >
                 ret c
             </func>
-        </operations>""")
+        </operation>""")
     assert len(operations) == 2
     assert operations[0].name == "F_MUL2"
     assert operations[0].arguments == ["a"]
