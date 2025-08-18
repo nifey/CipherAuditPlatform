@@ -192,12 +192,23 @@ def evaluate_generic_expression(expression: str, variable: str, value: int, oper
             return operator.join(terms)
     assert False
 
-def synthesize_c_variable(tokens : ParserElement) -> str:
+def instantiate_generics_on_string(string : str, generics_values : dict[str,int]):
+    generic_expressions = re.findall(r"{[^}]+}", string)
+    for variable in generics_values:
+        value = generics_values[variable]
+        for generic_expression in generic_expressions:
+            string = re.sub(re.escape(generic_expression),  \
+                    evaluate_generic_expression(generic_expression, variable, value),    \
+                    string)
+    return string
+
+def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int]) -> str:
     """Generate C code corresponding to the given variable"""
     value : str = "".join(tokens)
     if value[0] == "'" and value[-1] == "'":
         return value[1,-1]
-    elif value.find("_[") != -1:
+    value = instantiate_generics_on_string(value, generics_values)
+    if value.find("_[") != -1:
         separator_index : int = value.find("_[")
         bit_select : int = int(value[separator_index+2:-1])
         byte : str = value[:separator_index]
@@ -205,7 +216,7 @@ def synthesize_c_variable(tokens : ParserElement) -> str:
     else:
         return value
 
-def synthesize_c_statement_tokens(tokens : ParserElement) -> str:
+def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
     """Generate C code corresponding to the given statement tokens"""
     if len(tokens) > 1 and tokens[1] == "(":
         function_name = "".join(tokens[0])
@@ -215,41 +226,41 @@ def synthesize_c_statement_tokens(tokens : ParserElement) -> str:
 
         if function_name == "F_RS":
             assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
-                + ">>" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
+                + ">>" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
         elif function_name == "F_LS":
             assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
-                + "<<" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
+                + "<<" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
         elif function_name == "F_MUL":
             assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
-                + "*" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
+                + "*" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
         elif function_name == "F_AND":
             assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
-                + "&" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
+                + "&" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
         elif function_name == "F_OR":
             assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
-                + "|" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
+                + "|" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
         elif function_name == "F_XOR":
             assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0])  \
-                + "^" + synthesize_c_statement_tokens(argument_tokens[1]) + ")"
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
+                + "^" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
         elif function_name == "F_LKUP":
             assert len(argument_tokens) == 2
-            return synthesize_c_statement_tokens(argument_tokens[1])  \
-                + "[" + synthesize_c_variable(argument_tokens[0]) + "]"
+            return synthesize_c_statement_tokens(argument_tokens[1], generics_values)  \
+                + "[" + synthesize_c_variable(argument_tokens[0], generics_values) + "]"
         else:
             assert function_name.startswith("F_")
             return function_name[2:] + "(" + ", ".join(  \
-                [synthesize_c_statement_tokens(x) for x in argument_tokens]) + ")"
+                [synthesize_c_statement_tokens(x, generics_values) for x in argument_tokens]) + ")"
     else:
         if isinstance(tokens, list):
             assert len(tokens) == 1 and isinstance(tokens[0], ParseResults)
             tokens = tokens[0]
-        return synthesize_c_variable(tokens)
+        return synthesize_c_variable(tokens, generics_values)
 
 class Statement:
     """Represents a statement in a User-defined function.
@@ -328,23 +339,19 @@ class Part:
         assert self.tokens[2] == ":"
         self.output_value   : str       = "".join([str(x) for x in tokens[1]])
         self.function_tokens            = tokens[3:len(tokens)-1]
+        self.generics_values : dict[str,int]    = {}
 
     def __str__(self) -> str:
         return self.output_value + " = F(" + ",".join(self.input_values) + ")"
 
     def instantiate_generics(self, variable : str, value : int):
         """Generates a new Round by substituiting the given value for the given variable"""
-        generic_expressions = re.findall(r"{[^}]+}", self.output_value)
-        for generic_expression in generic_expressions:
-            self.output_value = re.sub(re.escape(generic_expression),  \
-                    evaluate_generic_expression(generic_expression, variable, value),    \
-                    self.output_value)
+        self.output_value = instantiate_generics_on_string(self.output_value, {variable: value})
+        self.generics_values[variable] = value
 
     # FIXME We haven't handled the case where the LHS has a bit slice
     def synthesize_c(self) -> str:
-        if len(self.function_tokens) == 0:
-            return self.output_value + " = " + self.input_values[0] + ";"
-        return self.output_value + " = " + synthesize_c_statement_tokens(self.function_tokens) + ";"
+        return self.output_value + " = " + synthesize_c_statement_tokens(self.function_tokens, self.generics_values) + ";"
 
 class Round:
     """Represents a Round in the cipher.
@@ -372,11 +379,7 @@ class Round:
     def instantiate_generics(self, variable : str, value : int):
         """Generates a new Round by substituiting the given value for the given variable
         """
-        generic_expressions = re.findall(r"{[^}]+}", self.name)
-        for generic_expression in generic_expressions:
-            self.name = re.sub(re.escape(generic_expression),  \
-                               evaluate_generic_expression(generic_expression, variable, value),    \
-                               self.name)
+        self.name = instantiate_generics_on_string(self.name, {variable: value})
         new_parts = []
         for part in self.parts:
             new_part = Part(part.tokens)
@@ -455,6 +458,7 @@ class CipherSpec:
                 self.rounds.extend(token.generate_rounds())
             else:
                 assert False, "Error in parsing"
+        self.rounds.sort(key=lambda x: int(x.name[1:]))
 
     def __str__(self) -> str:
         output = ""
