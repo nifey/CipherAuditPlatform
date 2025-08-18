@@ -1,94 +1,117 @@
 <begin>
-	<declaration>
-		SBOX[256] { 63 7c 77 7b f2 6b 6f c5 30 01 67 2b fe d7 ab 76 ca 82 c9 7d fa 59 47 f0 ad d4 a2 af 9c a4 72 c0 b7 fd 93 26 36 3f f7 cc 34 a5 e5 f1 71 d8 31 15 04 c7 23 c3 18 96 05 9a 07 12 80 e2 eb 27 b2 75 09 83 2c 1a 1b 6e 5a a0 52 3b d6 b3 29 e3 2f 84 53 d1 00 ed 20 fc b1 5b 6a cb be 39 4a 4c 58 cf d0 ef aa fb 43 4d 33 85 45 f9 02 7f 50 3c 9f a8 51 a3 40 8f 92 9d 38 f5 bc b6 da 21 10 ff f3 d2 cd 0c 13 ec 5f 97 44 17 c4 a7 7e 3d 64 5d 19 73 60 81 4f dc 22 2a 90 88 46 ee b8 14 de 5e 0b db e0 32 3a 0a 49 06 24 5c c2 d3 ac 62 91 95 e4 79 e7 c8 37 6d 8d d5 4e a9 6c 56 f4 ea 65 7a ae 08 ba 78 25 2e 1c a6 b4 c6 e8 dd 74 1f 4b bd 8b 8a 70 3e b5 66 48 03 f6 0e 61 35 57 b9 86 c1 1d 9e e1 f8 98 11 69 d9 8e 94 9b 1e 87 e9 ce 55 28 df 8c a1 89 0d bf e6 42 68 41 99 2d 0f b0 54 bb 16}
-		KEY[16] { 2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c}
-	</declaration>
+    <declaration>
+        SBOX[256] { 63 7c 77 7b f2 6b 6f c5 30 01 67 2b fe d7 ab 76 ca 82 c9 7d fa 59 47 f0 ad d4 a2 af 9c a4 72 c0 b7 fd 93 26 36 3f f7 cc 34 a5 e5 f1 71 d8 31 15 04 c7 23 c3 18 96 05 9a 07 12 80 e2 eb 27 b2 75 09 83 2c 1a 1b 6e 5a a0 52 3b d6 b3 29 e3 2f 84 53 d1 00 ed 20 fc b1 5b 6a cb be 39 4a 4c 58 cf d0 ef aa fb 43 4d 33 85 45 f9 02 7f 50 3c 9f a8 51 a3 40 8f 92 9d 38 f5 bc b6 da 21 10 ff f3 d2 cd 0c 13 ec 5f 97 44 17 c4 a7 7e 3d 64 5d 19 73 60 81 4f dc 22 2a 90 88 46 ee b8 14 de 5e 0b db e0 32 3a 0a 49 06 24 5c c2 d3 ac 62 91 95 e4 79 e7 c8 37 6d 8d d5 4e a9 6c 56 f4 ea 65 7a ae 08 ba 78 25 2e 1c a6 b4 c6 e8 dd 74 1f 4b bd 8b 8a 70 3e b5 66 48 03 f6 0e 61 35 57 b9 86 c1 1d 9e e1 f8 98 11 69 d9 8e 94 9b 1e 87 e9 ce 55 28 df 8c a1 89 0d bf e6 42 68 41 99 2d 0f b0 54 bb 16}
+        KEY[16] { 2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c}
+        EXPANDED_KEY[176] { 2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c a0 fa fe 17 88 54 2c b1 23 a3 39 39 2a 6c 76 05 f2 c2 95 f2 7a 96 b9 43 59 35 80 7a 73 59 f6 7f 3d 80 47 7d 47 16 fe 3e 1e 23 7e 44 6d 7a 88 3b ef 44 a5 41 a8 52 5b 7f b6 71 25 3b db 0b ad 00 d4 d1 c6 f8 7c 83 9d 87 ca f2 b8 bc 11 f9 15 bc 6d 88 a3 7a 11 0b 3e fd db f9 86 41 ca 00 93 fd 4e 54 f7 0e 5f 5f c9 f3 84 a6 4f b2 4e a6 dc 4f ea d2 73 21 b5 8d ba d2 31 2b f5 60 7f 8d 29 2f ac 77 66 f3 19 fa dc 21 28 d1 29 41 57 5c 00 6e d0 14 f9 a8 c9 ee 25 89 e1 3f 0c c8 b6 63 0c a6}
+    </declaration>
 
-	<operations>
-		 <func> < F_MUL2 ( a ) >
-			< h : F_RS   ( a , 7 ) >
-			< t : F_LS   ( a , 1 ) >
-			< n : F_MUL  ( h , '0x1b' ) >
-			< m : F_XOR  ( n , t ) >
-			ret m
-		</func>
-		<func> < F_MUL3  ( a ) >
-			< x : F_MUL2 ( a ) >
-			< t : F_XOR  ( a , x ) >
-			ret t
-		</func>
-	</operations>
+    <operations>
+        <func> < F_MUL2 ( a ) >
+            < h : F_RS   ( a , 7 ) >
+            < t : F_LS   ( a , 1 ) >
+            < n : F_MUL  ( h , '0x1b' ) >
+            < m : F_XOR  ( n , t ) >
+            ret m
+        </func>
+        <func> < F_MUL3  ( a ) >
+            < x : F_MUL2 ( a ) >
+            < t : F_XOR  ( a , x ) >
+            ret t
+        </func>
+    </operations>
 
-  	< F1 > < linear > < KEYXOR > <
-  		< F1[0]  : F_XOR( F0[0]  , F_LKUP( 0  , KEY ) ) >
-  		< F1[1]  : F_XOR( F0[1]  , F_LKUP( 1  , KEY ) ) >
-  		< F1[2]  : F_XOR( F0[2]  , F_LKUP( 2  , KEY ) ) >
-  		< F1[3]  : F_XOR( F0[3]  , F_LKUP( 3  , KEY ) ) >
-  		< F1[4]  : F_XOR( F0[4]  , F_LKUP( 4  , KEY ) ) >
-  		< F1[5]  : F_XOR( F0[5]  , F_LKUP( 5  , KEY ) ) >
-  		< F1[6]  : F_XOR( F0[6]  , F_LKUP( 6  , KEY ) ) >
-  		< F1[7]  : F_XOR( F0[7]  , F_LKUP( 7  , KEY ) ) >
-  		< F1[8]  : F_XOR( F0[8]  , F_LKUP( 8  , KEY ) ) >
-  		< F1[9]  : F_XOR( F0[9]  , F_LKUP( 9  , KEY ) ) >
-  		< F1[10] : F_XOR( F0[10] , F_LKUP( 10 , KEY ) ) >
-  		< F1[11] : F_XOR( F0[11] , F_LKUP( 11 , KEY ) ) >
-  		< F1[12] : F_XOR( F0[12] , F_LKUP( 12 , KEY ) ) >
-  		< F1[13] : F_XOR( F0[13] , F_LKUP( 13 , KEY ) ) >
-  		< F1[14] : F_XOR( F0[14] , F_LKUP( 14 , KEY ) ) >
-  		< F1[15] : F_XOR( F0[15] , F_LKUP( 15 , KEY ) ) >
-  	/>
-    < F2 > < nonlinear > < SUBBYTE > <
-        < F2[0]  : F_LKUP( F1[0]  , SBOX ) >
-        < F2[1]  : F_LKUP( F1[1]  , SBOX ) >
-        < F2[2]  : F_LKUP( F1[2]  , SBOX ) >
-        < F2[3]  : F_LKUP( F1[3]  , SBOX ) >
-        < F2[4]  : F_LKUP( F1[4]  , SBOX ) >
-        < F2[5]  : F_LKUP( F1[5]  , SBOX ) >
-        < F2[6]  : F_LKUP( F1[6]  , SBOX ) >
-        < F2[7]  : F_LKUP( F1[7]  , SBOX ) >
-        < F2[8]  : F_LKUP( F1[8]  , SBOX ) >
-        < F2[9]  : F_LKUP( F1[9] , SBOX ) >
-        < F2[10] : F_LKUP( F1[10] , SBOX ) >
-        < F2[11] : F_LKUP( F1[11] , SBOX ) >
-        < F2[12] : F_LKUP( F1[12] , SBOX ) >
-        < F2[13] : F_LKUP( F1[13] , SBOX ) >
-        < F2[14] : F_LKUP( F1[14] , SBOX ) >
-        < F2[15] : F_LKUP( F1[15] , SBOX ) >
+    < for i in [0:9] >
+    < F{i*4+1} > < linear > < KEYXOR > <
+        < F{i*4+1}[0]  : F_XOR( F{i*4}[0]  , F_LKUP( {i*16+0}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[1]  : F_XOR( F{i*4}[1]  , F_LKUP( {i*16+1}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[2]  : F_XOR( F{i*4}[2]  , F_LKUP( {i*16+2}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[3]  : F_XOR( F{i*4}[3]  , F_LKUP( {i*16+3}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[4]  : F_XOR( F{i*4}[4]  , F_LKUP( {i*16+4}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[5]  : F_XOR( F{i*4}[5]  , F_LKUP( {i*16+5}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[6]  : F_XOR( F{i*4}[6]  , F_LKUP( {i*16+6}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[7]  : F_XOR( F{i*4}[7]  , F_LKUP( {i*16+7}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[8]  : F_XOR( F{i*4}[8]  , F_LKUP( {i*16+8}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[9]  : F_XOR( F{i*4}[9]  , F_LKUP( {i*16+9}  , EXPANDED_KEY ) ) >
+        < F{i*4+1}[10] : F_XOR( F{i*4}[10] , F_LKUP( {i*16+10} , EXPANDED_KEY ) ) >
+        < F{i*4+1}[11] : F_XOR( F{i*4}[11] , F_LKUP( {i*16+11} , EXPANDED_KEY ) ) >
+        < F{i*4+1}[12] : F_XOR( F{i*4}[12] , F_LKUP( {i*16+12} , EXPANDED_KEY ) ) >
+        < F{i*4+1}[13] : F_XOR( F{i*4}[13] , F_LKUP( {i*16+13} , EXPANDED_KEY ) ) >
+        < F{i*4+1}[14] : F_XOR( F{i*4}[14] , F_LKUP( {i*16+14} , EXPANDED_KEY ) ) >
+        < F{i*4+1}[15] : F_XOR( F{i*4}[15] , F_LKUP( {i*16+15} , EXPANDED_KEY ) ) >
     />
-   < F3 > < linear > < SWAP > <
-  		< F3[0]  : F2[0]  >
-  		< F3[1]  : F2[5]  >
-  		< F3[2]  : F2[10] >
-  		< F3[3]  : F2[15] >
-  		< F3[4]  : F2[4]  >
-  		< F3[5]  : F2[9]  >
-  		< F3[6]  : F2[14] >
-  		< F3[7]  : F2[3]  >
-  		< F3[8]  : F2[8]  >
-  		< F3[9]  : F2[13] >
-  		< F3[10] : F2[2]  >
-  		< F3[11] : F2[7]  >
-  		< F3[12] : F2[12] >
-  		< F3[13] : F2[1]  >
-  		< F3[14] : F2[6]  >
-  		< F3[15] : F2[11] >
-  	/>
-  < F4 > < linear > < MDS > <
-		< F4[0]  : F_XOR( F_XOR( F_MUL2(F3[0] ), F_MUL3(F3[1] )), F_XOR(F3[2] ,F3[3] )) >
-		< F4[1]  : F_XOR( F_XOR( F_MUL2(F3[1] ), F_MUL3(F3[2] )), F_XOR(F3[0] ,F3[3] )) >
-		< F4[2]  : F_XOR( F_XOR( F_MUL2(F3[2] ), F_MUL3(F3[3] )), F_XOR(F3[0] ,F3[1] )) >
-		< F4[3]  : F_XOR( F_XOR( F_MUL2(F3[3] ), F_MUL3(F3[0] )), F_XOR(F3[1] ,F3[2] )) >
-		< F4[4]  : F_XOR( F_XOR( F_MUL2(F3[4] ), F_MUL3(F3[5] )), F_XOR(F3[6] ,F3[7] )) >
-		< F4[5]  : F_XOR( F_XOR( F_MUL2(F3[5] ), F_MUL3(F3[6] )), F_XOR(F3[4] ,F3[7] )) >
-		< F4[6]  : F_XOR( F_XOR( F_MUL2(F3[6] ), F_MUL3(F3[7] )), F_XOR(F3[4] ,F3[5] )) >
-		< F4[7]  : F_XOR( F_XOR( F_MUL2(F3[7] ), F_MUL3(F3[4] )), F_XOR(F3[5] ,F3[6] )) >
-		< F4[8]  : F_XOR( F_XOR( F_MUL2(F3[8] ), F_MUL3(F3[9] )), F_XOR(F3[10],F3[11])) >
-		< F4[9]  : F_XOR( F_XOR( F_MUL2(F3[9] ), F_MUL3(F3[10])), F_XOR(F3[8] ,F3[11])) >
-		< F4[10] : F_XOR( F_XOR( F_MUL2(F3[10]), F_MUL3(F3[11])), F_XOR(F3[8] ,F3[9] )) >
-		< F4[11] : F_XOR( F_XOR( F_MUL2(F3[11]), F_MUL3(F3[8] )), F_XOR(F3[9] ,F3[10])) >
-		< F4[12] : F_XOR( F_XOR( F_MUL2(F3[12]), F_MUL3(F3[13])), F_XOR(F3[14],F3[15])) >
-		< F4[13] : F_XOR( F_XOR( F_MUL2(F3[13]), F_MUL3(F3[14])), F_XOR(F3[12],F3[15])) >
-		< F4[14] : F_XOR( F_XOR( F_MUL2(F3[14]), F_MUL3(F3[15])), F_XOR(F3[12],F3[13])) >
-		< F4[15] : F_XOR( F_XOR( F_MUL2(F3[15]), F_MUL3(F3[12])), F_XOR(F3[13],F3[14])) >
-	/>
+    < for i in [2:38:4] >
+    < F{i} > < nonlinear > < SUBBYTE > <
+        < F{i}[0]  : F_LKUP( F{i-1}[0]  , SBOX ) >
+        < F{i}[1]  : F_LKUP( F{i-1}[1]  , SBOX ) >
+        < F{i}[2]  : F_LKUP( F{i-1}[2]  , SBOX ) >
+        < F{i}[3]  : F_LKUP( F{i-1}[3]  , SBOX ) >
+        < F{i}[4]  : F_LKUP( F{i-1}[4]  , SBOX ) >
+        < F{i}[5]  : F_LKUP( F{i-1}[5]  , SBOX ) >
+        < F{i}[6]  : F_LKUP( F{i-1}[6]  , SBOX ) >
+        < F{i}[7]  : F_LKUP( F{i-1}[7]  , SBOX ) >
+        < F{i}[8]  : F_LKUP( F{i-1}[8]  , SBOX ) >
+        < F{i}[9]  : F_LKUP( F{i-1}[9]  , SBOX ) >
+        < F{i}[10] : F_LKUP( F{i-1}[10] , SBOX ) >
+        < F{i}[11] : F_LKUP( F{i-1}[11] , SBOX ) >
+        < F{i}[12] : F_LKUP( F{i-1}[12] , SBOX ) >
+        < F{i}[13] : F_LKUP( F{i-1}[13] , SBOX ) >
+        < F{i}[14] : F_LKUP( F{i-1}[14] , SBOX ) >
+        < F{i}[15] : F_LKUP( F{i-1}[15] , SBOX ) >
+    />
+    < for i in [3:39:4] >
+    < F{i} > < linear > < SWAP > <
+        < F{i}[0]  : F{i-1}[0]  >
+        < F{i}[1]  : F{i-1}[5]  >
+        < F{i}[2]  : F{i-1}[10] >
+        < F{i}[3]  : F{i-1}[15] >
+        < F{i}[4]  : F{i-1}[4]  >
+        < F{i}[5]  : F{i-1}[9]  >
+        < F{i}[6]  : F{i-1}[14] >
+        < F{i}[7]  : F{i-1}[3]  >
+        < F{i}[8]  : F{i-1}[8]  >
+        < F{i}[9]  : F{i-1}[13] >
+        < F{i}[10] : F{i-1}[2]  >
+        < F{i}[11] : F{i-1}[7]  >
+        < F{i}[12] : F{i-1}[12] >
+        < F{i}[13] : F{i-1}[1]  >
+        < F{i}[14] : F{i-1}[6]  >
+        < F{i}[15] : F{i-1}[11] >
+    />
+    < for i in [4:36:4] >
+    < F{i} > < linear > < MDS > <
+        < F{i}[0]  : F_XOR( F_XOR( F_MUL2(F{i-1}[0] ), F_MUL3(F{i-1}[1] )), F_XOR(F{i-1}[2] ,F{i-1}[3] )) >
+        < F{i}[1]  : F_XOR( F_XOR( F_MUL2(F{i-1}[1] ), F_MUL3(F{i-1}[2] )), F_XOR(F{i-1}[0] ,F{i-1}[3] )) >
+        < F{i}[2]  : F_XOR( F_XOR( F_MUL2(F{i-1}[2] ), F_MUL3(F{i-1}[3] )), F_XOR(F{i-1}[0] ,F{i-1}[1] )) >
+        < F{i}[3]  : F_XOR( F_XOR( F_MUL2(F{i-1}[3] ), F_MUL3(F{i-1}[0] )), F_XOR(F{i-1}[1] ,F{i-1}[2] )) >
+        < F{i}[4]  : F_XOR( F_XOR( F_MUL2(F{i-1}[4] ), F_MUL3(F{i-1}[5] )), F_XOR(F{i-1}[6] ,F{i-1}[7] )) >
+        < F{i}[5]  : F_XOR( F_XOR( F_MUL2(F{i-1}[5] ), F_MUL3(F{i-1}[6] )), F_XOR(F{i-1}[4] ,F{i-1}[7] )) >
+        < F{i}[6]  : F_XOR( F_XOR( F_MUL2(F{i-1}[6] ), F_MUL3(F{i-1}[7] )), F_XOR(F{i-1}[4] ,F{i-1}[5] )) >
+        < F{i}[7]  : F_XOR( F_XOR( F_MUL2(F{i-1}[7] ), F_MUL3(F{i-1}[4] )), F_XOR(F{i-1}[5] ,F{i-1}[6] )) >
+        < F{i}[8]  : F_XOR( F_XOR( F_MUL2(F{i-1}[8] ), F_MUL3(F{i-1}[9] )), F_XOR(F{i-1}[10],F{i-1}[11])) >
+        < F{i}[9]  : F_XOR( F_XOR( F_MUL2(F{i-1}[9] ), F_MUL3(F{i-1}[10])), F_XOR(F{i-1}[8] ,F{i-1}[11])) >
+        < F{i}[10] : F_XOR( F_XOR( F_MUL2(F{i-1}[10]), F_MUL3(F{i-1}[11])), F_XOR(F{i-1}[8] ,F{i-1}[9] )) >
+        < F{i}[11] : F_XOR( F_XOR( F_MUL2(F{i-1}[11]), F_MUL3(F{i-1}[8] )), F_XOR(F{i-1}[9] ,F{i-1}[10])) >
+        < F{i}[12] : F_XOR( F_XOR( F_MUL2(F{i-1}[12]), F_MUL3(F{i-1}[13])), F_XOR(F{i-1}[14],F{i-1}[15])) >
+        < F{i}[13] : F_XOR( F_XOR( F_MUL2(F{i-1}[13]), F_MUL3(F{i-1}[14])), F_XOR(F{i-1}[12],F{i-1}[15])) >
+        < F{i}[14] : F_XOR( F_XOR( F_MUL2(F{i-1}[14]), F_MUL3(F{i-1}[15])), F_XOR(F{i-1}[12],F{i-1}[13])) >
+        < F{i}[15] : F_XOR( F_XOR( F_MUL2(F{i-1}[15]), F_MUL3(F{i-1}[12])), F_XOR(F{i-1}[13],F{i-1}[14])) >
+    />
+    < F40 > < linear > < KEYXOR > <
+        < F40[0]  : F_XOR( F39[0]  , F_LKUP( 160 , EXPANDED_KEY ) ) >
+        < F40[1]  : F_XOR( F39[1]  , F_LKUP( 161 , EXPANDED_KEY ) ) >
+        < F40[2]  : F_XOR( F39[2]  , F_LKUP( 162 , EXPANDED_KEY ) ) >
+        < F40[3]  : F_XOR( F39[3]  , F_LKUP( 163 , EXPANDED_KEY ) ) >
+        < F40[4]  : F_XOR( F39[4]  , F_LKUP( 164 , EXPANDED_KEY ) ) >
+        < F40[5]  : F_XOR( F39[5]  , F_LKUP( 165 , EXPANDED_KEY ) ) >
+        < F40[6]  : F_XOR( F39[6]  , F_LKUP( 166 , EXPANDED_KEY ) ) >
+        < F40[7]  : F_XOR( F39[7]  , F_LKUP( 167 , EXPANDED_KEY ) ) >
+        < F40[8]  : F_XOR( F39[8]  , F_LKUP( 168 , EXPANDED_KEY ) ) >
+        < F40[9]  : F_XOR( F39[9]  , F_LKUP( 169 , EXPANDED_KEY ) ) >
+        < F40[10] : F_XOR( F39[10] , F_LKUP( 170 , EXPANDED_KEY ) ) >
+        < F40[11] : F_XOR( F39[11] , F_LKUP( 171 , EXPANDED_KEY ) ) >
+        < F40[12] : F_XOR( F39[12] , F_LKUP( 172 , EXPANDED_KEY ) ) >
+        < F40[13] : F_XOR( F39[13] , F_LKUP( 173 , EXPANDED_KEY ) ) >
+        < F40[14] : F_XOR( F39[14] , F_LKUP( 174 , EXPANDED_KEY ) ) >
+        < F40[15] : F_XOR( F39[15] , F_LKUP( 175 , EXPANDED_KEY ) ) >
+    />
 <end>

@@ -76,7 +76,9 @@ def rounds_parser() -> ParserElement:
     linearity           = oneOf("linear nonlinear")
     round_type          = oneOf("KEYXOR SUBBYTE SWAP MDS DXOR FXOR CMP PREDICTPARITY FINDPARITY")
     bit_range           = (Word(nums) + ":" + Word(nums)) ^ Word(nums)
-    generic_term        = (Optional(Word(nums) + Literal("*")) + name) ^ Word(nums)
+    generic_term        = (Optional(Word(nums) + Literal("*")) + name)                              \
+                            ^ (name + Optional(Literal("*") + Word(nums)))                          \
+                            ^ Word(nums)
     generic_expression  = Literal("{") + generic_term                                               \
                                 + Optional(OneOrMore((Literal("+") ^ Literal("-")) + generic_term)) \
                                 + Literal("}")
@@ -84,7 +86,7 @@ def rounds_parser() -> ParserElement:
                                 + Optional("[" + Word(nums) + "]")                                  \
                                 + Optional("_[" + bit_range + "]"))
     function_call       = Forward()
-    function_arg        = Group(function_call) | part_name | constant
+    function_arg        = Group(function_call) | part_name | constant | Group(generic_expression)
     function_call       << function_name + "(" + Group(function_arg \
                                 + ZeroOrMore(Literal(",").suppress() + function_arg)) + ")"
     part                = "<" + part_name + ":" + ( part_name ^ function_call ) + ">"
@@ -190,7 +192,7 @@ def evaluate_generic_expression(expression: str, variable: str, value: int, oper
             return str(result)
         else:
             return operator.join(terms)
-    assert False
+    return evaluate_generic_expression(expression, variable, value, operators[1:])
 
 def instantiate_generics_on_string(string : str, generics_values : dict[str,int]):
     generic_expressions = re.findall(r"{[^}]+}", string)

@@ -103,8 +103,8 @@ def test_generic_rounds_parser():
     rounds = try_parsing(parser, """
     < for i in [1:41:4] >
   	< F{i} > < linear > < KEYXOR > <
-        < F{i}[0]  : F_XOR( F{i-1}[0]  , F_LKUP( 0  , KEY ) ) >
-        < F{i}[1]  : F{i-1}[1] >
+        < F{4+3*i-2}[0]  : F_XOR( F{i-1}[0]  , F_LKUP( {3+4*i}  , KEY ) ) >
+        < F{i}[1]  : F{i*4+1}[1] >
   	/>
         """)
     assert len(rounds) == 1
@@ -117,8 +117,10 @@ def test_generic_rounds_parser():
         assert rounds[i].linearity == "linear"
         assert rounds[i].type == "KEYXOR"
         assert len(rounds[i].parts) == 2
-        assert rounds[i].parts[0].output_value == "F" + str(round_num) + "[0]"
+        assert rounds[i].parts[0].output_value == "F" + str(4+3*round_num-2) + "[0]"
         assert rounds[i].parts[1].output_value == "F" + str(round_num) + "[1]"
+
+    assert rounds[1].synthesize_c() == "\t// Round F5\n\tF17[0] = (F4[0]^KEY[23]);\n\tF5[1] = F21[1];\n"
 
 def test_cipher_parser():
     with open("specifications/AES_128.bcs", "r") as specfile:
@@ -128,16 +130,24 @@ def test_cipher_parser():
     parser = cipher_parser()
     cipher = try_parsing(parser, specification)
     cipher = cipher[0]
-    assert len(cipher.declarations) == 2
+    assert len(cipher.declarations) == 3
     assert len(cipher.operations) == 2
-    assert len(cipher.rounds) == 4
+    assert len(cipher.rounds) == 40
 
     # Synthesis tests
     with open("test.c", "w+") as synthesis_file:
         synthesis_file.write(cipher.synthesize_c())
-    subprocess.run(["gcc", "test.c", "-o", "test"])
-    output = subprocess.run(["./test"], capture_output=True)
-    for line in output.stdout.decode("utf-8").split("\n"):
-        if line.startswith("F4"):
+    process = subprocess.run(["gcc", "test.c", "-o", "test"])
+    if process.returncode != 0:
+        print("Compilation of generated code failed with error code " + str(process.returncode))
+        assert False
+    process = subprocess.run(["./test"], capture_output=True)
+    if process.returncode != 0:
+        print("Program exited with error code " + str(process.returncode))
+        assert False
+    for line in process.stdout.decode("utf-8").split("\n"):
+        if line.startswith("F4 "):
             assert "5c ad 56 37 ee db 3c 19 b9 79 82 af 1f e0 6 e4" in line
+        if line.startswith("F40 "):
+            assert "50 fe 67 cc 99 6d 32 b6 da 09 37 e9 9b af ec 60" in line
     subprocess.run(["rm", "test.c", "test"])
