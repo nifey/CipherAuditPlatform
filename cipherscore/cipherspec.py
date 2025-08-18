@@ -14,6 +14,7 @@
 #################################################################################################
 # Parsers and the Grammar of BCSL
 #################################################################################################
+import re
 from pyparsing import ParserElement, ParseResults, ParseException, Group, Forward
 from pyparsing import Literal, OneOrMore, ZeroOrMore, Optional, oneOf
 from pyparsing import Word, alphas, alphanums, nums, hexnums
@@ -73,10 +74,14 @@ def rounds_parser() -> ParserElement:
                             ^ Word(nums)
     function_name       = Group("F_" + name)
     linearity           = oneOf("linear nonlinear")
-    round_function_name = Group(Literal("F") + Word(nums))
     round_type          = oneOf("KEYXOR SUBBYTE SWAP MDS DXOR FXOR CMP PREDICTPARITY FINDPARITY")
     bit_range           = (Word(nums) + ":" + Word(nums)) ^ Word(nums)
-    part_name           = Group(name + Optional("[" + Word(nums) + "]")
+    generic_term        = (Optional(Word(nums) + Literal("*")) + name) ^ Word(nums)
+    generic_expression  = Literal("{") + generic_term                                               \
+                                + Optional(OneOrMore((Literal("+") ^ Literal("-")) + generic_term)) \
+                                + Literal("}")
+    part_name           = Group(name + Optional(generic_expression)                                 \
+                                + Optional("[" + Word(nums) + "]")                                  \
                                 + Optional("_[" + bit_range + "]"))
     function_call       = Forward()
     function_arg        = Group(function_call) | part_name | constant
@@ -84,11 +89,16 @@ def rounds_parser() -> ParserElement:
                                 + ZeroOrMore(Literal(",").suppress() + function_arg)) + ")"
     part                = "<" + part_name + ":" + ( part_name ^ function_call ) + ">"
     part                = part.add_parse_action(Part)
+    round_function_name = Group(Literal("F") + (Word(nums) ^ generic_expression))
     round               = "<" + round_function_name + ">" + "<" + linearity + ">"                   \
                             + "<" + round_type + ">"                                                \
                             + "<" + OneOrMore(part) + "/>"
     round               = round.add_parse_action(Round)
-    rounds              = OneOrMore(round)
+    generic_round       = Literal("<") + "for" + name + "in" +                                      \
+                            "[" + Word(nums) + ":" + Word(nums) + Optional(":" + Word(nums)) + "]"  \
+                            + Literal(">") + round
+    generic_round       = generic_round.add_parse_action(GenericRound)
+    rounds              = OneOrMore(round ^ generic_round)
     return rounds
 
 def cipher_parser() -> ParserElement:
@@ -141,6 +151,46 @@ class Declaration:
         else:
             return "uint8_t " + self.name + "[" + str(self.len) + "] = { "  \
                 + ", ".join(["0x"+x for x in self.data]) + " };\n"
+
+def evaluate_generic_expression(expression: str, variable: str, value: int, operators : list[str] = ["-", "+", "*"]):
+    """Substitute the variable in the expression (for generic instantiation)"""
+    if expression[0] == "{":
+        assert expression[-1] == "}"
+        expression = expression[1:-1]
+
+    # Base case
+    if expression == variable:
+        return str(value)
+    if len(operators) == 0:
+        return expression
+
+    # Recursive case
+    operator = operators[0]
+    if expression.find(operator) != -1:
+        terms = [x.strip() for x in expression.split(operator)]
+        for i in range(len(terms)):
+            if terms[i] == variable:
+                terms[i] = str(value)
+            elif not terms[i].isdigit():
+                terms[i] = evaluate_generic_expression(terms[i], variable, value, operators[1:])
+        all_digits = True
+        for i in range(len(terms)):
+            if not terms[i].isdigit():
+                all_digits = False
+                break
+        if all_digits:
+            result = int(terms[0])
+            for i in range(1,len(terms)):
+                if operator == "-":
+                    result = result - int(terms[i])
+                elif operator == "+":
+                    result = result + int(terms[i])
+                elif operator == "*":
+                    result = result * int(terms[i])
+            return str(result)
+        else:
+            return operator.join(terms)
+    assert False
 
 def synthesize_c_variable(tokens : ParserElement) -> str:
     """Generate C code corresponding to the given variable"""
@@ -282,6 +332,14 @@ class Part:
     def __str__(self) -> str:
         return self.output_value + " = F(" + ",".join(self.input_values) + ")"
 
+    def instantiate_generics(self, variable : str, value : int):
+        """Generates a new Round by substituiting the given value for the given variable"""
+        generic_expressions = re.findall(r"{[^}]+}", self.output_value)
+        for generic_expression in generic_expressions:
+            self.output_value = re.sub(re.escape(generic_expression),  \
+                    evaluate_generic_expression(generic_expression, variable, value),    \
+                    self.output_value)
+
     # FIXME We haven't handled the case where the LHS has a bit slice
     def synthesize_c(self) -> str:
         if len(self.function_tokens) == 0:
@@ -311,10 +369,57 @@ class Round:
     def __str__(self) -> str:
         return f"{self.name} : {self.linearity} : {self.type}\n\t" + "\n\t".join([str(x) for x in self.parts])
 
+    def instantiate_generics(self, variable : str, value : int):
+        """Generates a new Round by substituiting the given value for the given variable
+        """
+        generic_expressions = re.findall(r"{[^}]+}", self.name)
+        for generic_expression in generic_expressions:
+            self.name = re.sub(re.escape(generic_expression),  \
+                               evaluate_generic_expression(generic_expression, variable, value),    \
+                               self.name)
+        new_parts = []
+        for part in self.parts:
+            new_part = Part(part.tokens)
+            new_part.instantiate_generics(variable, value)
+            new_parts.append(new_part)
+        self.parts = new_parts
+
     def synthesize_c(self) -> str:
         output = "\t// Round " + self.name + "\n\t"
         output += "\n\t".join([part.synthesize_c() for part in self.parts]) + "\n"
         return output
+
+class GenericRound:
+    """Represents a set of Rounds in the cipher, that are generated from the For construct.
+
+    Attributes:
+        tokens (ParserElement) : Parser tokens corresponding to this generic round
+    """
+
+    def __init__(self, tokens: ParserElement) -> None:
+        self.tokens = tokens
+
+    def generate_rounds(self) -> list[Round]:
+        assert self.tokens[0] == "<"
+        assert self.tokens[1] == "for"
+        iter_variable = str(self.tokens[2])
+        assert self.tokens[3] == "in"
+        assert self.tokens[4] == "["
+        iter_start = int(self.tokens[5])
+        assert self.tokens[6] == ":"
+        iter_end = int(self.tokens[7])
+        iter_step = 1
+        if self.tokens[8] == ":":
+            iter_step = int(self.tokens[9])
+        round = self.tokens[-1]
+
+        # Generating rounds
+        new_rounds = []
+        for iter_value in range(iter_start,iter_end+1,iter_step):
+            new_round = Round(round.tokens)
+            new_round.instantiate_generics(iter_variable, iter_value)
+            new_rounds.append(new_round)
+        return new_rounds
 
 class CipherSpec:
     """Represents a Specification of a Block Cipher.
@@ -346,6 +451,8 @@ class CipherSpec:
                 self.operations.append(token)
             elif (isinstance(token, Round)):
                 self.rounds.append(token)
+            elif (isinstance(token, GenericRound)):
+                self.rounds.extend(token.generate_rounds())
             else:
                 assert False, "Error in parsing"
 

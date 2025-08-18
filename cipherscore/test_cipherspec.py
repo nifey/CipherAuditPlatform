@@ -5,7 +5,7 @@
 import subprocess
 from pyparsing import ParserElement, ParseException
 from .cipherspec import declarations_parser, operations_parser, rounds_parser, cipher_parser
-from .cipherspec import Declaration, Operation, Round
+from .cipherspec import Declaration, Operation, Round, GenericRound
 
 def try_parsing(parser: ParserElement, string : str):
     """Try parsing the string with the given parser. If exception occurs print error and fail"""
@@ -96,6 +96,29 @@ def test_rounds_parser():
     # Synthesis tests
     assert rounds[0].synthesize_c() == "\t// Round F2\n\tF2[1] = SBOX[F1[1]];\n\tF2[2] = (SBOX[F1[2]]^F1[3]);\n\tF2[3] = (((F1[1]>>2)&1)^(F1[2]^0x1b));\n"
     assert rounds[1].synthesize_c() == "\t// Round F3\n\tF3[1] = F2[1];\n\tF3[2] = F2[2];\n"
+
+def test_generic_rounds_parser():
+    # Parsing tests
+    parser = rounds_parser()
+    rounds = try_parsing(parser, """
+    < for i in [1:41:4] >
+  	< F{i} > < linear > < KEYXOR > <
+        < F{i}[0]  : F_XOR( F{i-1}[0]  , F_LKUP( 0  , KEY ) ) >
+        < F{i}[1]  : F{i-1}[1] >
+  	/>
+        """)
+    assert len(rounds) == 1
+    assert isinstance(rounds[0], GenericRound)
+    rounds = rounds[0].generate_rounds()
+
+    assert len(rounds) == 11
+    for i, round_num in enumerate(range(1, 42, 4)):
+        assert rounds[i].name == "F" + str(round_num)
+        assert rounds[i].linearity == "linear"
+        assert rounds[i].type == "KEYXOR"
+        assert len(rounds[i].parts) == 2
+        assert rounds[i].parts[0].output_value == "F" + str(round_num) + "[0]"
+        assert rounds[i].parts[1].output_value == "F" + str(round_num) + "[1]"
 
 def test_cipher_parser():
     with open("specifications/AES_128.bcs", "r") as specfile:
