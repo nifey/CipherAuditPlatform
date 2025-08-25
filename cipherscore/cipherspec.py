@@ -75,15 +75,16 @@ def rounds_parser() -> ParserElement:
     function_name       = Group("F_" + name)
     linearity           = oneOf("linear nonlinear")
     round_type          = oneOf("KEYXOR SUBBYTE SWAP MDS DXOR FXOR CMP PREDICTPARITY FINDPARITY")
-    bit_range           = (Word(nums) + ":" + Word(nums)) ^ Word(nums)
     generic_term        = (Optional(Word(nums) + Literal("*")) + name)                              \
                             ^ (name + Optional(Literal("*") + Word(nums)))                          \
                             ^ Word(nums)
     generic_expression  = Literal("{") + generic_term                                               \
                                 + Optional(OneOrMore((Literal("+") ^ Literal("-")) + generic_term)) \
                                 + Literal("}")
+    generic_number      = Word(nums) ^ generic_expression
+    bit_range           = (generic_number + ":" + generic_number) ^ generic_number
     part_name           = Group(name + Optional(generic_expression)                                 \
-                                + Optional("[" + Word(nums) + "]")                                  \
+                                + Optional("[" + generic_number + "]")                              \
                                 + Optional("_[" + bit_range + "]"))
     function_call       = Forward()
     function_arg        = Group(function_call) | part_name | constant | Group(generic_expression)
@@ -91,10 +92,14 @@ def rounds_parser() -> ParserElement:
                                 + ZeroOrMore(Literal(",").suppress() + function_arg)) + ")"
     part                = "<" + part_name + ":" + ( part_name ^ function_call ) + ">"
     part                = part.add_parse_action(Part)
+    generic_part        = Literal("<") + "for" + name + "in" +                                      \
+                            "[" + Word(nums) + ":" + Word(nums) + Optional(":" + Word(nums)) + "]"  \
+                            + Literal(">") + part
+    generic_part       = generic_part.add_parse_action(GenericPart)
     round_function_name = Group(Literal("F") + (Word(nums) ^ generic_expression))
     round               = "<" + round_function_name + ">" + "<" + linearity + ">"                   \
                             + "<" + round_type + ">"                                                \
-                            + "<" + OneOrMore(part) + "/>"
+                            + "<" + OneOrMore(part ^ generic_part) + "/>"
     round               = round.add_parse_action(Round)
     generic_round       = Literal("<") + "for" + name + "in" +                                      \
                             "[" + Word(nums) + ":" + Word(nums) + Optional(":" + Word(nums)) + "]"  \
@@ -196,12 +201,16 @@ def evaluate_generic_expression(expression: str, variable: str, value: int, oper
 
 def instantiate_generics_on_string(string : str, generics_values : dict[str,int]):
     generic_expressions = re.findall(r"{[^}]+}", string)
-    for variable in generics_values:
-        value = generics_values[variable]
-        for generic_expression in generic_expressions:
-            string = re.sub(re.escape(generic_expression),  \
-                    evaluate_generic_expression(generic_expression, variable, value),    \
-                    string)
+    for generic_expression in generic_expressions:
+        evaluated_expression = generic_expression
+        for variable in generics_values:
+            value = generics_values[variable]
+            evaluated_expression =  evaluate_generic_expression(evaluated_expression, variable, value)
+        if evaluated_expression.isdigit():
+            string = string.replace(generic_expression, evaluated_expression)
+        else:
+            # This expression isn't fully evaluted, and has to be considered again later
+            string = string.replace(generic_expression, "{" + evaluated_expression + "}")
     return string
 
 def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int]) -> str:
@@ -333,6 +342,7 @@ class Part:
         tokens (ParserElement) : Parser tokens corresponding to this Part
         output_value (str) : The value to which this Part is assigning
         function_tokens (list[ParserElement]) : (Optional) Parser tokens corresponding to the function
+        generics_values (dict[str,int]) : Map from generic variable to instantiating value
     """
 
     def __init__(self, tokens: ParserElement) -> None:
@@ -348,12 +358,44 @@ class Part:
 
     def instantiate_generics(self, variable : str, value : int):
         """Generates a new Round by substituiting the given value for the given variable"""
-        self.output_value = instantiate_generics_on_string(self.output_value, {variable: value})
         self.generics_values[variable] = value
+        self.output_value = instantiate_generics_on_string(self.output_value, self.generics_values)
 
     # FIXME We haven't handled the case where the LHS has a bit slice
     def synthesize_c(self) -> str:
         return self.output_value + " = " + synthesize_c_statement_tokens(self.function_tokens, self.generics_values) + ";"
+
+class GenericPart:
+    """Represents a set of Parts in a Cipher Round, that are generated from the For construct.
+
+    Attributes:
+        tokens (ParserElement) : Parser tokens corresponding to this generic part
+    """
+
+    def __init__(self, tokens: ParserElement) -> None:
+        self.tokens = tokens
+
+    def generate_parts(self) -> list[Part]:
+        assert self.tokens[0] == "<"
+        assert self.tokens[1] == "for"
+        iter_variable = str(self.tokens[2])
+        assert self.tokens[3] == "in"
+        assert self.tokens[4] == "["
+        iter_start = int(self.tokens[5])
+        assert self.tokens[6] == ":"
+        iter_end = int(self.tokens[7])
+        iter_step = 1
+        if self.tokens[8] == ":":
+            iter_step = int(self.tokens[9])
+        part = self.tokens[-1]
+
+        # Generating parts
+        new_parts = []
+        for iter_value in range(iter_start,iter_end+1,iter_step):
+            new_part = Part(part.tokens)
+            new_part.instantiate_generics(iter_variable, iter_value)
+            new_parts.append(new_part)
+        return new_parts
 
 class Round:
     """Represents a Round in the cipher.
@@ -373,7 +415,11 @@ class Round:
         self.type       : str           = tokens[7]
         self.parts      : list[Part]    = []
         for i in range(10, len(tokens) - 1):
-            self.parts.append(tokens[i])
+            if isinstance(tokens[i], GenericPart):
+                # Expand any generic parts
+                self.parts.extend(tokens[i].generate_parts())
+            else:
+                self.parts.append(tokens[i])
 
     def __str__(self) -> str:
         return f"{self.name} : {self.linearity} : {self.type}\n\t" + "\n\t".join([str(x) for x in self.parts])
@@ -383,10 +429,17 @@ class Round:
         """
         self.name = instantiate_generics_on_string(self.name, {variable: value})
         new_parts = []
-        for part in self.parts:
-            new_part = Part(part.tokens)
-            new_part.instantiate_generics(variable, value)
-            new_parts.append(new_part)
+        for i in range(10, len(self.tokens) - 1):
+            if isinstance(self.tokens[i], GenericPart):
+                # Expand any generic parts. Here we don't have to create a copy
+                # because generate_parts creates copies for us, possibly instantiating part-level generics
+                for new_part in self.tokens[i].generate_parts():
+                    new_part.instantiate_generics(variable, value)
+                    new_parts.append(new_part)
+            else:
+                new_part = Part(self.tokens[i].tokens)
+                new_part.instantiate_generics(variable, value)
+                new_parts.append(new_part)
         self.parts = new_parts
 
     def synthesize_c(self) -> str:

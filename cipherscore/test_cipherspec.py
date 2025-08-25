@@ -107,10 +107,9 @@ def test_generic_rounds_parser():
         < F{i}[1]  : F{i*4+1}[1] >
   	/>
         """)
-    assert len(rounds) == 1
+
     assert isinstance(rounds[0], GenericRound)
     rounds = rounds[0].generate_rounds()
-
     assert len(rounds) == 11
     for i, round_num in enumerate(range(1, 42, 4)):
         assert rounds[i].name == "F" + str(round_num)
@@ -119,8 +118,28 @@ def test_generic_rounds_parser():
         assert len(rounds[i].parts) == 2
         assert rounds[i].parts[0].output_value == "F" + str(4+3*round_num-2) + "[0]"
         assert rounds[i].parts[1].output_value == "F" + str(round_num) + "[1]"
-
     assert rounds[1].synthesize_c() == "\t// Round F5\n\tF17[0] = (F4[0]^KEY[23]);\n\tF5[1] = F21[1];\n"
+
+    rounds = try_parsing(parser, """
+    < for i in [0:9] >
+    < F{i*4+3} > < linear > < SWAP > <
+        < for j in [0:15] >
+        < F{i*4+3}[{i+j}] : F2[{j+1}] >
+        < F{i*4+3}[{i}] : F_LKUP( {i+1}, KEY ) >
+    />
+        """)
+
+    assert isinstance(rounds[0], GenericRound)
+    rounds = rounds[0].generate_rounds()
+    assert len(rounds) == 10
+    for i, round_num in enumerate(range(3, 40, 4)):
+        assert rounds[i].name == "F" + str(round_num)
+        assert rounds[i].linearity == "linear"
+        assert rounds[i].type == "SWAP"
+        assert len(rounds[i].parts) == 17
+        for j in range(16):
+            assert rounds[i].parts[j].output_value == "F" + str(round_num) + "[" + str(i+j) + "]"
+        assert rounds[i].parts[16].synthesize_c() == "F" + str(round_num) + "[" + str(i) + "] = KEY[" + str(i+1) + "];"
 
 def test_cipher_parser():
     with open("specifications/AES_128.bcs", "r") as specfile:
