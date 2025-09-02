@@ -354,7 +354,7 @@ class Part:
         self.generics_values : dict[str,int]    = {}
 
     def __str__(self) -> str:
-        return self.output_value + " = F(" + ",".join(self.input_values) + ")"
+        return self.synthesize_c()
 
     def instantiate_generics(self, variable : str, value : int):
         """Generates a new Round by substituiting the given value for the given variable"""
