@@ -44,7 +44,7 @@ def operations_parser() -> ParserElement:
     prototype_args      = prototype_arg + ZeroOrMore(Literal(",").suppress() + prototype_arg)
     prototype           = function_name + "(" + Group(prototype_args) + ")"
     stmt                = Group("<" + variable + ":" + OneOrMore(prototype ^ variable) + ">")
-    ret_stmt            = Group("ret" + variable)
+    ret_stmt            = Group(Literal("<") + "ret" + variable + Literal(">"))
     exit_stmt           = Group(Literal("<exit>"))
 
     predicate           = oneOf("F_EQ F_NEQ F_LE F_GE F_LT F_GT")
@@ -286,8 +286,9 @@ class Statement:
         return "".join([str(x) for x in self.tokens])
 
     def synthesize_c(self) -> str:
-        if self.tokens[0] == "ret":
-            return "\treturn " + self.tokens[1] + ";\n"
+        if self.tokens[0] == "<" and self.tokens[1] == "ret":
+            assert self.tokens[3] == ">"
+            return "\treturn " + self.tokens[2] + ";\n"
         elif self.tokens[0] == "<":
             assert self.tokens[2] == ":"
             assert self.tokens[-1] == ">"

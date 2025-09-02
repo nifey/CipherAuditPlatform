@@ -47,12 +47,12 @@ def test_operations():
                 < t : F_LS ( a , 1 ) >
                 < n : F_MUL ( h , '0x1b' ) >
                 < m : F_XOR ( n , t ) >
-                ret m
+                < ret m >
             </func>
 
             <func> < F_MUL3 ( a , b ) >
                 < c : F_MUL ( a, b ) >
-                ret c
+                < ret c >
             </func>
         </operation>""")
     assert len(operations) == 2

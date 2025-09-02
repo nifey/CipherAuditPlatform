@@ -11,12 +11,12 @@
             < t : F_LS   ( a , 1 ) >
             < n : F_MUL  ( h , '0x1b' ) >
             < m : F_XOR  ( n , t ) >
-            ret m
+            < ret m >
         </func>
         <func> < F_MUL3  ( a ) >
             < x : F_MUL2 ( a ) >
             < t : F_XOR  ( a , x ) >
-            ret t
+            < ret t >
         </func>
     </operation>
 
