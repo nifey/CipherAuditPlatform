@@ -4,7 +4,7 @@ from pyparsing import ParseException
 
 def main():
     if len(sys.argv) != 2:
-        print("Usage: python main.py <bcsl_file>")
+        print("Usage: python main.py <csl_file>")
         exit()
     data : str = ""
     with open(sys.argv[1], "r") as infile:

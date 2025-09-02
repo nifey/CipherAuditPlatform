@@ -1,5 +1,5 @@
 #################################################################################################
-# This file contains unit tests for BCSL parsing and synthesis
+# This file contains unit tests for CSL parsing and synthesis
 #################################################################################################
 
 import subprocess
@@ -142,7 +142,7 @@ def test_generic_rounds_parser():
         assert rounds[i].parts[16].synthesize_c() == "F" + str(round_num) + "[" + str(i) + "] = KEY[" + str(i+1) + "];"
 
 def test_cipher_parser():
-    with open("specifications/AES_128.bcs", "r") as specfile:
+    with open("specifications/AES_128.csl", "r") as specfile:
         specification = specfile.read()
 
     # Parsing tests

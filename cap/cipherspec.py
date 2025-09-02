@@ -1,8 +1,8 @@
 #################################################################################################
 # This file contains Class definitions and Parsers for various elements of
-# a Block cipher as defined in the Block Cipher Specification Language (BCSL)
+# a Block cipher as defined in the Cipher Specification Language (CSL)
 #
-# Each BCSL file (CipherSpec) has three parts
+# Each CSL file (CipherSpec) has three parts
 # - CipherSpec
 #   - Declarations    : (Optional) Consists of lookup and data tables
 #   - Operations      : (Optional) User defined functions that will be used in the rounds
@@ -12,7 +12,7 @@
 #################################################################################################
 
 #################################################################################################
-# Parsers and the Grammar of BCSL
+# Parsers and the Grammar of CSL
 #################################################################################################
 import re
 from pyparsing import ParserElement, ParseResults, ParseException, Group, Forward
@@ -109,7 +109,7 @@ def rounds_parser() -> ParserElement:
     return rounds
 
 def cipher_parser() -> ParserElement:
-    """Returns a parser for the Cipher encoded in BCSL"""
+    """Returns a parser for the Cipher encoded in CSL"""
     declarations    = declarations_parser()
     operations      = operations_parser()
     rounds          = rounds_parser()
@@ -483,7 +483,7 @@ class CipherSpec:
     """Represents a Specification of a Block Cipher.
 
     Attributes:
-        filename (str)  : Filename of the BCSL specification file
+        filename (str)  : Filename of the CSL specification file
         declarations (list[Declaration]) : Declarations (data and lookup tables) of the cipher
         operations (list[Operation]) : Operations (User defined functions) of the cipher
         rounds (list[Round]) : Rounds of the cipher

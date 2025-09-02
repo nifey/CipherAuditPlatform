@@ -1,9 +1,14 @@
 [project]
-name = "cipherscore"
+name = "cipher-audit-platform"
 version = "0.1.0"
-description = "Tool to find points in a Block cipher implementation that are vulnerable to fault injection attacks, and quantize the exploitability"
+description = "Tool for auditing Block Cipher implementations for points vulnerable to fault injection attacks, and to also quantize the exploitability"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "pyparsing>=3.2.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
 ]
