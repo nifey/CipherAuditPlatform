@@ -22,7 +22,7 @@ Every CSL specification consists of three parts written in between `<begin>` and
     - The operations are defined between `<operation>` and `</operation>` tags. The individual operations are defined between `<func>` and `</func>` tags. The tag following the `<func>` tag, specifies the name of the operation and the arguments used.
     - The body of the operation consists of a sequence of operations that operates on the arguments or constants.
     - For example `< h : F_RS   ( a , 7 ) >` defines a statement where the variable h will be assigned the value `a >> 7`. `F_RS` is an in-built function that performs right shift operation. 
-    - List of in-built functions: `F_RS`, `F_LS`, `F_MUL`, `F_XOR`, `F_AND`, `F_LKUP`, used to perform Right shift, Left shift, Multiplication, XOR, AND and array/declaration indexing, respectively.
+    - List of in-built functions: `F_RS`, `F_LS`, `F_ADD`, `F_SUB`, `F_MUL`, `F_XOR`, `F_AND`, `F_LKUP`, used to perform Right shift, Left shift, Addition, Subtraction, Multiplication, XOR, AND and array/declaration indexing, respectively.
     - The operation body can at last return the value of a computed variable using the return statement. For example `< ret m >`, returns the value held in variable `m` inside the operation body.
     - In AES, we define operations to perform the Galois Field multiplication used during the MixColumn rounds.
     ```

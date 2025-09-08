@@ -243,6 +243,14 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
             assert len(argument_tokens) == 2
             return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
                 + "<<" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
+        elif function_name == "F_ADD":
+            assert len(argument_tokens) == 2
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
+                + "+" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
+        elif function_name == "F_SUB":
+            assert len(argument_tokens) == 2
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
+                + "-" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
         elif function_name == "F_MUL":
             assert len(argument_tokens) == 2
             return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
