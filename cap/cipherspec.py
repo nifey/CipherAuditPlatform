@@ -227,6 +227,12 @@ def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int
     else:
         return value
 
+binary_function_to_symbol_map = {
+        "F_ADD": "+",   "F_SUB": "-",
+        "F_MUL": "*",   "F_DIV": "/",   "F_MOD": "%",
+        "F_RS" : ">>",  "F_LS" : "<<",
+        "F_XOR": "^",   "F_AND": "&",   "F_OR": "|",
+        }
 def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
     """Generate C code corresponding to the given statement tokens"""
     if len(tokens) > 1 and tokens[1] == "(":
@@ -235,38 +241,11 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
         argument_tokens = tokens[2]
         assert function_name.startswith("F")
 
-        if function_name == "F_RS":
+        if function_name in binary_function_to_symbol_map:
             assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
-                + ">>" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
-        elif function_name == "F_LS":
-            assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
-                + "<<" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
-        elif function_name == "F_ADD":
-            assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
-                + "+" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
-        elif function_name == "F_SUB":
-            assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
-                + "-" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
-        elif function_name == "F_MUL":
-            assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
-                + "*" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
-        elif function_name == "F_AND":
-            assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
-                + "&" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
-        elif function_name == "F_OR":
-            assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
-                + "|" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
-        elif function_name == "F_XOR":
-            assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values)  \
-                + "^" + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values) \
+                + binary_function_to_symbol_map[function_name]                              \
+                + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
         elif function_name == "F_LKUP":
             assert len(argument_tokens) == 2
             return synthesize_c_statement_tokens(argument_tokens[1], generics_values)  \
