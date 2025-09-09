@@ -44,13 +44,13 @@ def operations_parser() -> ParserElement:
     prototype_args      = prototype_arg + ZeroOrMore(Literal(",").suppress() + prototype_arg)
     prototype           = function_name + "(" + Group(prototype_args) + ")"
     stmt                = Forward()
-    assign_stmt         = Group("<" + variable + ":" + OneOrMore(prototype ^ variable) + ">")
+    assign_stmt         = Group("<" + variable + ":" + OneOrMore(prototype ^ variable ^ constant) + ">")
     ret_stmt            = Group(Literal("<") + "ret" + variable + Literal(">"))
     exit_stmt           = Group(Literal("<exit>"))
 
     condition           = variable + oneOf("EQ NE LE GE LT GT") + (variable ^ constant)
     loop                = Group(Literal("<") + Literal("while") + condition + ">"                   \
-                                + OneOrMore(stmt)                                                   \
+                                + Group(OneOrMore(stmt))                                            \
                                 + "</while>")
     if_else             = Group(Literal("<") + Literal ("if") + condition + ">"                     \
                                 + Group(OneOrMore(stmt))                                            \
@@ -266,7 +266,18 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
         result.append("}\n")
         return "\t" + "\n\t".join(result)
     elif tokens[0] == "<" and  tokens[1] == "while":
-        return ""
+        assert tokens[5] == ">"
+        result = []
+        result.append("while (" + synthesize_c_variable(tokens[2])                          \
+                      + " " + binary_predicate_to_symbol_map[tokens[3]] + " "               \
+                      + synthesize_c_variable(tokens[4]) + ") {")
+        for token in tokens[6]:
+            substatements = synthesize_c_statement_tokens(token).split("\n")
+            if substatements[-1] == "":
+                substatements = substatements[:-1]
+            result.extend(substatements)
+        result.append("}\n")
+        return "\t" + "\n\t".join(result)
     elif len(tokens) > 1 and tokens[1] == "(":
         function_name = "".join(tokens[0])
         assert tokens[3] == ")"

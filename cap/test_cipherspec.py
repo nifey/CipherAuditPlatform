@@ -79,8 +79,16 @@ def test_operations():
                 </if>
             </func>
  
+            <func> < F_FACT ( n ) >
+                <sum : 1>
+                <while n GT 0 >
+                    < sum : F_MUL(sum,n) >
+                    < n : F_SUB(n, 1) >
+                </while>
+            </func>
+
         </operation>""")
-    assert len(operations) == 4
+    assert len(operations) == 5
     assert operations[0].name == "F_MUL2"
     assert operations[0].arguments == ["a"]
     assert len(operations[0].statements) == 5
@@ -93,6 +101,7 @@ def test_operations():
     assert operations[1].synthesize_c() == "uint8_t MUL3 (uint8_t a, uint8_t b) {\n\tuint8_t c = (a*b);\n\treturn c;\n}\n"
     assert operations[2].synthesize_c() == "uint8_t MAX (uint8_t a, uint8_t b) {\n\tif (a > b) {\n\t\treturn a;\n\t} else {\n\t\treturn b;\n\t}\n}\n"
     assert operations[3].synthesize_c() == "uint8_t MAX3 (uint8_t a, uint8_t b, uint8_t c) {\n\tif (a > b) {\n\t\tif (a > c) {\n\t\t\treturn a;\n\t\t} else {\n\t\t\treturn c;\n\t\t}\n\t} else {\n\t\tif (b > c) {\n\t\t\treturn b;\n\t\t} else {\n\t\t\treturn c;\n\t\t}\n\t}\n}\n"
+    assert operations[4].synthesize_c() == "uint8_t FACT (uint8_t n) {\n\tuint8_t sum = 1;\n\twhile (n > 0) {\n\t\tuint8_t sum = (sum*n);\n\t\tuint8_t n = (n-1);\n\t}\n}\n"
 
 def test_rounds_parser():
     # Parsing tests
