@@ -54,8 +54,33 @@ def test_operations():
                 < c : F_MUL ( a, b ) >
                 < ret c >
             </func>
+
+            <func> < F_MAX ( a, b ) >
+                <if a GT b>
+                    < ret a >
+                <else>
+                    < ret b >
+                </if>
+            </func>
+
+            <func> < F_MAX3 ( a, b, c ) >
+                <if a GT b>
+                    <if a GT c>
+                        < ret a >
+                    <else>
+                        < ret c >
+                    </if>
+                <else>
+                    <if b GT c>
+                        < ret b >
+                    <else>
+                        < ret c >
+                    </if>
+                </if>
+            </func>
+ 
         </operation>""")
-    assert len(operations) == 2
+    assert len(operations) == 4
     assert operations[0].name == "F_MUL2"
     assert operations[0].arguments == ["a"]
     assert len(operations[0].statements) == 5
@@ -66,6 +91,8 @@ def test_operations():
     # Synthesis tests
     assert operations[0].synthesize_c() == "uint8_t MUL2 (uint8_t a) {\n\tuint8_t h = (a>>7);\n\tuint8_t t = (a<<1);\n\tuint8_t n = (h*0x1b);\n\tuint8_t m = (n^t);\n\treturn m;\n}\n"
     assert operations[1].synthesize_c() == "uint8_t MUL3 (uint8_t a, uint8_t b) {\n\tuint8_t c = (a*b);\n\treturn c;\n}\n"
+    assert operations[2].synthesize_c() == "uint8_t MAX (uint8_t a, uint8_t b) {\n\tif (a > b) {\n\t\treturn a;\n\t} else {\n\t\treturn b;\n\t}\n}\n"
+    assert operations[3].synthesize_c() == "uint8_t MAX3 (uint8_t a, uint8_t b, uint8_t c) {\n\tif (a > b) {\n\t\tif (a > c) {\n\t\t\treturn a;\n\t\t} else {\n\t\t\treturn c;\n\t\t}\n\t} else {\n\t\tif (b > c) {\n\t\t\treturn b;\n\t\t} else {\n\t\t\treturn c;\n\t\t}\n\t}\n}\n"
 
 def test_rounds_parser():
     # Parsing tests

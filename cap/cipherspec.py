@@ -43,22 +43,22 @@ def operations_parser() -> ParserElement:
     prototype_arg       = Group(variable ^ constant)
     prototype_args      = prototype_arg + ZeroOrMore(Literal(",").suppress() + prototype_arg)
     prototype           = function_name + "(" + Group(prototype_args) + ")"
-    stmt                = Group("<" + variable + ":" + OneOrMore(prototype ^ variable) + ">")
+    stmt                = Forward()
+    assign_stmt         = Group("<" + variable + ":" + OneOrMore(prototype ^ variable) + ">")
     ret_stmt            = Group(Literal("<") + "ret" + variable + Literal(">"))
     exit_stmt           = Group(Literal("<exit>"))
 
-    predicate           = oneOf("F_EQ F_NEQ F_LE F_GE F_LT F_GT")
-    condition           = predicate + "(" + variable + ")"
-    loop                = Group(Literal("<repeat") + "(" + variable + ":" + condition + ")" + ">"
-                                + OneOrMore(stmt)
-                                + "</repeat>")
-    if_else             = Group(Literal("<if") + "(" + variable + ":" + condition + ")" + ">"
-                                + OneOrMore(stmt ^ ret_stmt ^ exit_stmt)
-                                + Optional("<else>" + OneOrMore(stmt ^ ret_stmt ^ exit_stmt) )
+    condition           = variable + oneOf("EQ NE LE GE LT GT") + (variable ^ constant)
+    loop                = Group(Literal("<") + Literal("while") + condition + ">"                   \
+                                + OneOrMore(stmt)                                                   \
+                                + "</while>")
+    if_else             = Group(Literal("<") + Literal ("if") + condition + ">"                     \
+                                + Group(OneOrMore(stmt))                                            \
+                                + Optional("<else>" + Group(OneOrMore(stmt)))                       \
                                 + "</if>")
+    stmt                <<= if_else ^ loop ^ assign_stmt ^ ret_stmt ^ exit_stmt
     operation           = Literal("<func>") + "<" + prototype + ">"                                 \
-                            + ZeroOrMore(stmt ^ loop ^ if_else)                                     \
-                            + Optional(ret_stmt ^ exit_stmt)                                        \
+                            + ZeroOrMore(stmt)                                                      \
                             + "</func>"
     operation           = operation.add_parse_action(Operation)
     operations          = Literal("<operation>").suppress()                                         \
@@ -213,7 +213,7 @@ def instantiate_generics_on_string(string : str, generics_values : dict[str,int]
             string = string.replace(generic_expression, "{" + evaluated_expression + "}")
     return string
 
-def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int]) -> str:
+def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
     """Generate C code corresponding to the given variable"""
     value : str = "".join(tokens)
     if value[0] == "'" and value[-1] == "'":
@@ -233,9 +233,41 @@ binary_function_to_symbol_map = {
         "F_RS" : ">>",  "F_LS" : "<<",
         "F_XOR": "^",   "F_AND": "&",   "F_OR": "|",
         }
+binary_predicate_to_symbol_map = {"EQ": "==","NE": "!=","GT": ">", "LT": "<","GE": ">=","LE": "<="}
 def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
     """Generate C code corresponding to the given statement tokens"""
-    if len(tokens) > 1 and tokens[1] == "(":
+    if tokens[0] == "<" and tokens[1] == "ret":
+        assert tokens[3] == ">"
+        return "\treturn " + tokens[2] + ";\n"
+    elif tokens[0] == "<" and tokens[2] == ":":
+        assert tokens[-1] == ">"
+        output_variable = tokens[1]
+        statement_tokens = tokens[3:-1]
+        return "\tuint8_t " + output_variable + " = "   \
+            + synthesize_c_statement_tokens(statement_tokens) + ";\n"
+    elif tokens[0] == "<" and  tokens[1] == "if":
+        assert tokens[5] == ">"
+        result = []
+        result.append("if (" + synthesize_c_variable(tokens[2])                             \
+                      + " " + binary_predicate_to_symbol_map[tokens[3]] + " "               \
+                      + synthesize_c_variable(tokens[4]) + ") {")
+        for token in tokens[6]:
+            substatements = synthesize_c_statement_tokens(token).split("\n")
+            if substatements[-1] == "":
+                substatements = substatements[:-1]
+            result.extend(substatements)
+        if tokens[7] == "<else>":
+            result.append("} else {")
+            for token in tokens[8]:
+                substatements = synthesize_c_statement_tokens(token).split("\n")
+                if substatements[-1] == "":
+                    substatements = substatements[:-1]
+                result.extend(substatements)
+        result.append("}\n")
+        return "\t" + "\n\t".join(result)
+    elif tokens[0] == "<" and  tokens[1] == "while":
+        return ""
+    elif len(tokens) > 1 and tokens[1] == "(":
         function_name = "".join(tokens[0])
         assert tokens[3] == ")"
         argument_tokens = tokens[2]
@@ -254,10 +286,9 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
             assert function_name.startswith("F_")
             return function_name[2:] + "(" + ", ".join(  \
                 [synthesize_c_statement_tokens(x, generics_values) for x in argument_tokens]) + ")"
+    elif isinstance(tokens, list):
+        return "".join([synthesize_c_statement_tokens(t, generics_values) for t in tokens])
     else:
-        if isinstance(tokens, list):
-            assert len(tokens) == 1 and isinstance(tokens[0], ParseResults)
-            tokens = tokens[0]
         return synthesize_c_variable(tokens, generics_values)
 
 class Statement:
@@ -273,21 +304,7 @@ class Statement:
         return "".join([str(x) for x in self.tokens])
 
     def synthesize_c(self) -> str:
-        if self.tokens[0] == "<" and self.tokens[1] == "ret":
-            assert self.tokens[3] == ">"
-            return "\treturn " + self.tokens[2] + ";\n"
-        elif self.tokens[0] == "<":
-            assert self.tokens[2] == ":"
-            assert self.tokens[-1] == ">"
-            output_variable = self.tokens[1]
-            statement_tokens = self.tokens[3:-1]
-            return "\tuint8_t " + output_variable + " = "   \
-                + synthesize_c_statement_tokens(statement_tokens) + ";\n"
-        else:
-            # FIXME Handle if-else and loop
-            print("Error: Unhandled statement type: ", end="")
-            print(self.tokens)
-            assert False
+        return synthesize_c_statement_tokens(self.tokens)
 
 class Operation:
     """Represents a User-defined function used in the cipher.
