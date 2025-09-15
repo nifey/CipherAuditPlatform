@@ -123,11 +123,13 @@ def test_rounds_parser():
     assert rounds[0].type == "SUBBYTE"
     assert len(rounds[0].parts) == 3
     assert rounds[0].parts[2].output_value == "F2[3]"
+    assert rounds[0].parts[2].get_input_values() == set(["F1[1]", "F1[2]"])
     assert rounds[1].name == "F3"
     assert rounds[1].linearity == "linear"
     assert rounds[1].type == "SWAP"
     assert len(rounds[1].parts) == 2
     assert rounds[1].parts[1].output_value == "F3[2]"
+    assert rounds[1].parts[1].get_input_values() == set(["F2[2]"])
 
     # Synthesis tests
     assert rounds[0].synthesize_c() == "\t// Round F2\n\tF2[1] = SBOX[F1[1]];\n\tF2[2] = (SBOX[F1[2]]^F1[3]);\n\tF2[3] = (((F1[1]>>2)&1)^(F1[2]^0x1b));\n"

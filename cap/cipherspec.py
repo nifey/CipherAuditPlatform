@@ -304,6 +304,44 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
     else:
         return synthesize_c_variable(tokens, generics_values)
 
+def get_all_input_values(tokens : ParserElement, generics_values : dict[str,int] = {}) -> set[str]:
+    """Return all the input round parts corresponding to the given statement tokens"""
+    input_value_set = set()
+    if tokens[0] == "<" and tokens[1] == "ret":
+        pass
+    elif tokens[0] == "<" and tokens[2] == ":":
+        assert tokens[-1] == ">"
+        output_variable = tokens[1]
+        statement_tokens = tokens[3:-1]
+        input_value_set.update(get_all_input_values(statement_tokens, generics_values))
+    elif tokens[0] == "<" and tokens[5] == ">" and (tokens[1] == "if" or tokens[1] == "while"):
+        print("If and while statements are not allowed inside round functions")
+        assert False
+    elif len(tokens) > 1 and tokens[1] == "(":
+        function_name = "".join(tokens[0])
+        assert tokens[3] == ")"
+        argument_tokens = tokens[2]
+        assert function_name.startswith("F")
+
+        if function_name in binary_function_to_symbol_map:
+            assert len(argument_tokens) == 2
+            input_value_set.update(get_all_input_values(argument_tokens[0], generics_values))
+            input_value_set.update(get_all_input_values(argument_tokens[1], generics_values))
+        elif function_name == "F_LKUP":
+            assert len(argument_tokens) == 2
+            input_value_set.update(get_all_input_values(argument_tokens[1], generics_values))
+            input_value_set.add(synthesize_c_variable(argument_tokens[0], generics_values))
+        else:
+            assert function_name.startswith("F_")
+            for token in argument_tokens:
+                input_value_set.update(get_all_input_values(token, generics_values))
+    elif isinstance(tokens, list):
+        for token in tokens:
+            input_value_set.update(get_all_input_values(token, generics_values))
+    else:
+        input_value_set.add(synthesize_c_variable(tokens, generics_values))
+    return input_value_set
+
 class Statement:
     """Represents a statement in a User-defined function.
 
@@ -384,6 +422,13 @@ class Part:
         """Generates a new Round by substituiting the given value for the given variable"""
         self.generics_values[variable] = value
         self.output_value = instantiate_generics_on_string(self.output_value, self.generics_values)
+
+    def get_input_values(self):
+        input_values = set()
+        for value in get_all_input_values(self.function_tokens, self.generics_values):
+            for regex_match in re.findall(r"F[0-9]+\[[0-9]+\]", value):
+                input_values.add(regex_match)
+        return input_values
 
     # FIXME We haven't handled the case where the LHS has a bit slice
     def synthesize_c(self) -> str:
