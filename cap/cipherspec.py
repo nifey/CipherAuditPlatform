@@ -234,7 +234,8 @@ binary_function_to_symbol_map = {
         "F_XOR": "^",   "F_AND": "&",   "F_OR": "|",
         }
 binary_predicate_to_symbol_map = {"EQ": "==","NE": "!=","GT": ">", "LT": "<","GE": ">=","LE": "<="}
-def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
+def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict[str,int] = {},
+                                  variable_set : set[str] = set()) -> str:
     """Generate C code corresponding to the given statement tokens"""
     if tokens[0] == "<" and tokens[1] == "ret":
         assert tokens[3] == ">"
@@ -243,8 +244,9 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
         assert tokens[-1] == ">"
         output_variable = tokens[1]
         statement_tokens = tokens[3:-1]
-        return "\tuint8_t " + output_variable + " = "   \
-            + synthesize_c_statement_tokens(statement_tokens) + ";\n"
+        variable_set.add(output_variable)
+        return "\t" + output_variable + " = " \
+                + synthesize_c_statement_tokens(statement_tokens, generics_values, variable_set) + ";\n"
     elif tokens[0] == "<" and  tokens[1] == "if":
         assert tokens[5] == ">"
         result = []
@@ -252,14 +254,14 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
                       + " " + binary_predicate_to_symbol_map[tokens[3]] + " "               \
                       + synthesize_c_variable(tokens[4]) + ") {")
         for token in tokens[6]:
-            substatements = synthesize_c_statement_tokens(token).split("\n")
+            substatements = synthesize_c_statement_tokens(token, generics_values, variable_set).split("\n")
             if substatements[-1] == "":
                 substatements = substatements[:-1]
             result.extend(substatements)
         if tokens[7] == "<else>":
             result.append("} else {")
             for token in tokens[8]:
-                substatements = synthesize_c_statement_tokens(token).split("\n")
+                substatements = synthesize_c_statement_tokens(token, generics_values, variable_set).split("\n")
                 if substatements[-1] == "":
                     substatements = substatements[:-1]
                 result.extend(substatements)
@@ -272,7 +274,7 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
                       + " " + binary_predicate_to_symbol_map[tokens[3]] + " "               \
                       + synthesize_c_variable(tokens[4]) + ") {")
         for token in tokens[6]:
-            substatements = synthesize_c_statement_tokens(token).split("\n")
+            substatements = synthesize_c_statement_tokens(token, generics_values, variable_set).split("\n")
             if substatements[-1] == "":
                 substatements = substatements[:-1]
             result.extend(substatements)
@@ -286,19 +288,19 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
 
         if function_name in binary_function_to_symbol_map:
             assert len(argument_tokens) == 2
-            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values) \
+            return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values, variable_set) \
                 + binary_function_to_symbol_map[function_name]                              \
-                + synthesize_c_statement_tokens(argument_tokens[1], generics_values) + ")"
+                + synthesize_c_statement_tokens(argument_tokens[1], generics_values, variable_set) + ")"
         elif function_name == "F_LKUP":
             assert len(argument_tokens) == 2
-            return synthesize_c_statement_tokens(argument_tokens[1], generics_values)  \
+            return synthesize_c_statement_tokens(argument_tokens[1], generics_values, variable_set)  \
                 + "[" + synthesize_c_variable(argument_tokens[0], generics_values) + "]"
         else:
             assert function_name.startswith("F_")
             return function_name[2:] + "(" + ", ".join(  \
-                [synthesize_c_statement_tokens(x, generics_values) for x in argument_tokens]) + ")"
+                [synthesize_c_statement_tokens(x, generics_values, variable_set) for x in argument_tokens]) + ")"
     elif isinstance(tokens, list):
-        return "".join([synthesize_c_statement_tokens(t, generics_values) for t in tokens])
+        return "".join([synthesize_c_statement_tokens(t, generics_values, variable_set) for t in tokens])
     else:
         return synthesize_c_variable(tokens, generics_values)
 
@@ -314,8 +316,8 @@ class Statement:
     def __str__(self) -> str:
         return "".join([str(x) for x in self.tokens])
 
-    def synthesize_c(self) -> str:
-        return synthesize_c_statement_tokens(self.tokens)
+    def synthesize_c(self, variable_set : set[str]) -> str:
+        return synthesize_c_statement_tokens(self.tokens, {}, variable_set)
 
 class Operation:
     """Represents a User-defined function used in the cipher.
@@ -346,8 +348,14 @@ class Operation:
 
     def synthesize_c(self) -> str:
         output = "uint8_t " + self.name[2:] + " (" + ", ".join(["uint8_t "+x for x in self.arguments]) + ") {\n"
+        variable_set = set()
+        statement_string = ""
         for statement in self.statements:
-            output += statement.synthesize_c()
+            statement_string += statement.synthesize_c(variable_set)
+        # Declare the required variables before adding the statement synthesis
+        if len(variable_set) > 0:
+            output += "\tuint8_t " + ", ".join(sorted(variable_set)) + ";\n"
+        output += statement_string
         output += "}\n"
         return output
 

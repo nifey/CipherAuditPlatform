@@ -97,11 +97,11 @@ def test_operations():
     assert len(operations[1].statements) == 2
 
     # Synthesis tests
-    assert operations[0].synthesize_c() == "uint8_t MUL2 (uint8_t a) {\n\tuint8_t h = (a>>7);\n\tuint8_t t = (a<<1);\n\tuint8_t n = (h*0x1b);\n\tuint8_t m = (n^t);\n\treturn m;\n}\n"
-    assert operations[1].synthesize_c() == "uint8_t MUL3 (uint8_t a, uint8_t b) {\n\tuint8_t c = (a*b);\n\treturn c;\n}\n"
+    assert operations[0].synthesize_c() == "uint8_t MUL2 (uint8_t a) {\n\tuint8_t h, m, n, t;\n\th = (a>>7);\n\tt = (a<<1);\n\tn = (h*0x1b);\n\tm = (n^t);\n\treturn m;\n}\n"
+    assert operations[1].synthesize_c() == "uint8_t MUL3 (uint8_t a, uint8_t b) {\n\tuint8_t c;\n\tc = (a*b);\n\treturn c;\n}\n"
     assert operations[2].synthesize_c() == "uint8_t MAX (uint8_t a, uint8_t b) {\n\tif (a > b) {\n\t\treturn a;\n\t} else {\n\t\treturn b;\n\t}\n}\n"
     assert operations[3].synthesize_c() == "uint8_t MAX3 (uint8_t a, uint8_t b, uint8_t c) {\n\tif (a > b) {\n\t\tif (a > c) {\n\t\t\treturn a;\n\t\t} else {\n\t\t\treturn c;\n\t\t}\n\t} else {\n\t\tif (b > c) {\n\t\t\treturn b;\n\t\t} else {\n\t\t\treturn c;\n\t\t}\n\t}\n}\n"
-    assert operations[4].synthesize_c() == "uint8_t FACT (uint8_t n) {\n\tuint8_t sum = 1;\n\twhile (n > 0) {\n\t\tuint8_t sum = (sum*n);\n\t\tuint8_t n = (n-1);\n\t}\n}\n"
+    assert operations[4].synthesize_c() == "uint8_t FACT (uint8_t n) {\n\tuint8_t n, sum;\n\tsum = 1;\n\twhile (n > 0) {\n\t\tsum = (sum*n);\n\t\tn = (n-1);\n\t}\n}\n"
 
 def test_rounds_parser():
     # Parsing tests
