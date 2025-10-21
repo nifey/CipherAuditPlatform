@@ -423,6 +423,9 @@ class Part:
         self.generics_values[variable] = value
         self.output_value = instantiate_generics_on_string(self.output_value, self.generics_values)
 
+    def get_output_value(self):
+        return self.output_value
+
     def get_input_values(self):
         input_values = set()
         for value in get_all_input_values(self.function_tokens, self.generics_values):
