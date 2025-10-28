@@ -198,13 +198,13 @@ cipher_testcases = [
         {"file" : "specifications/AES_128.csl",     "declarations" : 3,     "operations" : 2,   "rounds" : 40,
          "tests" : [("F4",      "5c ad 56 37 ee db 3c 19 b9 79 82 af 1f e0 06 e4"),
                     ("F40",     "50 fe 67 cc 99 6d 32 b6 da 09 37 e9 9b af ec 60")]},
-        {"file" : "specifications/CLEFIA_128.csl",  "declarations" : 5,     "operations" : 5,   "rounds" : 6, # FIXME 74
+        {"file" : "specifications/CLEFIA_128.csl",  "declarations" : 5,     "operations" : 5,   "rounds" : 91,
          "tests" : [("F1",      "00 01 02 03 fb eb db cb 08 09 0a 0b b7 a7 97 87"),
                     ("F2",      "f3 e7 cc fa 85 fe 54 33"),
                     ("F3",      "29 02 46 e1 77 7d e8 e8"),
                     ("F4",      "54 7a 31 93 ab f1 20 70"),
-                    ("F6",      "af 91 ea 58 08 09 0a 0b 1c 56 b7 f7 00 01 02 03")]}
-
+                    ("F6",      "af 91 ea 58 08 09 0a 0b 1c 56 b7 f7 00 01 02 03"),
+                    ("F91",     "de 2b f2 fd 9b 74 aa cd f1 29 85 55 45 94 94 fd")]}
         ]
 
 def test_cipher_parser():
