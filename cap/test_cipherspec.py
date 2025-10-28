@@ -179,19 +179,7 @@ def test_generic_rounds_parser():
             assert rounds[i].parts[j].output_value == "F" + str(round_num) + "[" + str(i+j) + "]"
         assert rounds[i].parts[16].synthesize_c() == "F" + str(round_num) + "[" + str(i) + "] = KEY[" + str(i+1) + "];"
 
-def test_cipher_parser():
-    with open("specifications/AES_128.csl", "r") as specfile:
-        specification = specfile.read()
-
-    # Parsing tests
-    parser = cipher_parser()
-    cipher = try_parsing(parser, specification)
-    cipher = cipher[0]
-    assert len(cipher.declarations) == 3
-    assert len(cipher.operations) == 2
-    assert len(cipher.rounds) == 40
-
-    # Synthesis tests
+def synthesize_and_get_output(cipher):
     with open("test.c", "w+") as synthesis_file:
         synthesis_file.write(cipher.synthesize_c())
     process = subprocess.run(["gcc", "test.c", "-o", "test"])
@@ -202,9 +190,51 @@ def test_cipher_parser():
     if process.returncode != 0:
         print("Program exited with error code " + str(process.returncode))
         assert False
-    for line in process.stdout.decode("utf-8").split("\n"):
-        if line.startswith("F4 "):
-            assert "5c ad 56 37 ee db 3c 19 b9 79 82 af 1f e0 6 e4" in line
-        if line.startswith("F40 "):
-            assert "50 fe 67 cc 99 6d 32 b6 da 09 37 e9 9b af ec 60" in line
+    output = process.stdout.decode("utf-8")
     subprocess.run(["rm", "test.c", "test"])
+    return output
+
+cipher_testcases = [
+        {"file" : "specifications/AES_128.csl",     "declarations" : 3,     "operations" : 2,   "rounds" : 40,
+         "tests" : [("F4",      "5c ad 56 37 ee db 3c 19 b9 79 82 af 1f e0 06 e4"),
+                    ("F40",     "50 fe 67 cc 99 6d 32 b6 da 09 37 e9 9b af ec 60")]},
+        {"file" : "specifications/CLEFIA_128.csl",  "declarations" : 5,     "operations" : 5,   "rounds" : 6, # FIXME 74
+         "tests" : [("F1",      "00 01 02 03 fb eb db cb 08 09 0a 0b b7 a7 97 87"),
+                    ("F2",      "f3 e7 cc fa 85 fe 54 33"),
+                    ("F3",      "29 02 46 e1 77 7d e8 e8"),
+                    ("F4",      "54 7a 31 93 ab f1 20 70"),
+                    ("F6",      "af 91 ea 58 08 09 0a 0b 1c 56 b7 f7 00 01 02 03")]}
+
+        ]
+
+def test_cipher_parser():
+    for testcase in cipher_testcases:
+        with open(testcase["file"], "r") as specfile:
+            specification = specfile.read()
+
+        # Parsing tests
+        parser = cipher_parser()
+        cipher = try_parsing(parser, specification)
+        cipher = cipher[0]
+        assert len(cipher.declarations) == testcase["declarations"]
+        assert len(cipher.operations)   == testcase["operations"]
+        assert len(cipher.rounds)       == testcase["rounds"]
+        test_checked = set()
+        output = synthesize_and_get_output(cipher)
+        for line in output.split("\n"):
+            for test_round, test_data in testcase["tests"]:
+                if line.startswith(test_round + "\t"):
+                    test_checked.add(test_round)
+                    if test_data not in line:
+                        print("Test failed for " + testcase["file"])
+                        print(test_round)
+                        print(test_data)
+                        print(output)
+                        assert False
+        for test_round, test_data in testcase["tests"]:
+            if test_round not in test_checked:
+                print("Test failed for " + testcase["file"])
+                print(test_round)
+                print(test_data)
+                print(output)
+                assert False
