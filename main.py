@@ -1,5 +1,5 @@
 import sys
-from cipherscore import CipherSpec, cipher_parser
+from cap import CipherSpec, cipher_parser
 from pyparsing import ParseException
 
 def main():
