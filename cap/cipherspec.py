@@ -213,6 +213,29 @@ def instantiate_generics_on_string(string : str, generics_values : dict[str,int]
             string = string.replace(generic_expression, "{" + evaluated_expression + "}")
     return string
 
+def parse_bit_range(value) -> (str, int, int):
+    """Parse bit range and return part name, start, end bit index"""
+    if value.find("_[") == -1:
+        assert False
+    separator_index : int = value.find("_[")
+    byte : str = value[:separator_index]
+    bit_range = value[separator_index+2:-1]
+    if bit_range.find(":") != -1:
+        # Bit range select
+        split_index     : int = bit_range.find(":")
+        bit_select_msb  : int = int(bit_range[:split_index])
+        bit_select_lsb  : int = int(bit_range[split_index+1:])
+        assert bit_select_lsb >= 0 and bit_select_lsb < 8
+        assert bit_select_msb >= 0 and bit_select_msb < 8
+        if bit_select_msb < bit_select_lsb: # We support both order indexing
+            bit_select_msb, bit_select_lsb = bit_select_lsb, bit_select_msb
+    else:
+        # Single bit select
+        bit_select_msb  : int = int(bit_range)
+        bit_select_lsb  : int = bit_select_msb
+        assert bit_select_msb >= 0 and bit_select_msb < 8
+    return byte, bit_select_msb, bit_select_lsb
+
 def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
     """Generate C code corresponding to the given variable"""
     value : str = "".join(tokens)
@@ -220,10 +243,15 @@ def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int
         return value[1,-1]
     value = instantiate_generics_on_string(value, generics_values)
     if value.find("_[") != -1:
-        separator_index : int = value.find("_[")
-        bit_select : int = int(value[separator_index+2:-1])
-        byte : str = value[:separator_index]
-        return "((" + byte + ">>" + str(bit_select) + ")&1)"
+        byte, bit_select_msb, bit_select_lsb = parse_bit_range(value)
+        if bit_select_msb == bit_select_lsb:
+            # Single bit select
+            return "((" + byte + ">>" + str(bit_select_lsb) + ")&1)"
+        else:
+            # Bit range select
+            bit_select_len  : int = bit_select_msb - bit_select_lsb
+            return "((" + byte + ">>" + str(bit_select_lsb) + \
+                    ")&((1<<" + str(bit_select_len+1) + ")-1))"
     else:
         return value
 
@@ -433,9 +461,25 @@ class Part:
                 input_values.add(regex_match)
         return input_values
 
-    # FIXME We haven't handled the case where the LHS has a bit slice
     def synthesize_c(self) -> str:
-        return self.output_value + " = " + synthesize_c_statement_tokens(self.function_tokens, self.generics_values) + ";"
+        if self.output_value.find("_[") != -1:
+            # We have to handle bit select on the output value differently 
+            # when compared to bit handling in synthesize_c_variable
+            rhs_statement = synthesize_c_statement_tokens(self.function_tokens, self.generics_values)
+            byte, bit_select_msb, bit_select_lsb = parse_bit_range(self.output_value)
+            if bit_select_msb == bit_select_lsb:
+                # Single bit select
+                bit_select_mask         = "(1<<"+str(bit_select_lsb)+")"
+                bit_select_inverse_mask = "(((1<<8)-1)^"+str(bit_select_mask)+")" # FIXME Byte len hardcoded
+            else:
+                # Bit range select
+                bit_select_mask         = "((1<<"+str(bit_select_msb+1)+")-(1<<"+str(bit_select_lsb)+"))"
+                bit_select_inverse_mask = "(((1<<8)-1)^"+str(bit_select_mask)+")" # FIXME Byte len hardcoded
+            return byte + " = (" + byte + " & " + bit_select_inverse_mask + ") | " + \
+                    "((" + rhs_statement + "<<" + str(bit_select_lsb)+ ") & " + bit_select_mask + ")"
+        else:
+            return self.output_value + " = " + \
+                    synthesize_c_statement_tokens(self.function_tokens, self.generics_values) + ";"
 
 class GenericPart:
     """Represents a set of Parts in a Cipher Round, that are generated from the For construct.

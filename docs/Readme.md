@@ -81,3 +81,10 @@ Every CSL specification consists of three parts written in between `<begin>` and
         ```
 
 The complete specification of AES can be found [here](../specifications/AES_128.csl).
+
+### Other language features
+
+#### Bit slicing
+- By default, every part in CSL operates on a byte. CSL also supports operating on certain bits within the byte using bit slicing suffix `_[`. For example, `F2[15]_[3]` represents the 3rd bit inside `F2[15]` (where 0 represents the least significant bit and 8 represents the most significant bit).
+- Similarly, we can also specify a bit range to operate on consecutive bits of data. For example, `F2[15]_[6:4]` represents the three bit value equal to the bits starting from the 6th bit till the 4th bit of `F2[15]`. In other words, `F2[15]_[6:4]` is equivalent to `(F2[15]>>4) & 7`.
+- Note that both the indices used in the bit slice are inclusive. CSL supports both order of specifying the indices, i.e. CSL treats `F2[15]_[6:4]` and `F2[15]_[4:6]` as the same.

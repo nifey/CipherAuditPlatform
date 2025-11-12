@@ -115,6 +115,9 @@ def test_rounds_parser():
     < F3 > < linear > < SWAP > <
         < F3[1] : F2[1] >
         < F3[2] : F2[2] >
+        < F3[3]_[0] : F2[3]_[0] >
+        < F3[3]_[4:5] : F2[3]_[2:3] >
+        < F3[3]_[3:2] : F2[3]_[5:4] >
     />
         """)
     assert len(rounds) == 2
@@ -127,13 +130,19 @@ def test_rounds_parser():
     assert rounds[1].name == "F3"
     assert rounds[1].linearity == "linear"
     assert rounds[1].type == "SWAP"
-    assert len(rounds[1].parts) == 2
+    assert len(rounds[1].parts) == 5
     assert rounds[1].parts[1].output_value == "F3[2]"
     assert rounds[1].parts[1].get_input_values() == set(["F2[2]"])
 
     # Synthesis tests
     assert rounds[0].synthesize_c() == "\t// Round F2\n\tF2[1] = SBOX[F1[1]];\n\tF2[2] = (SBOX[F1[2]]^F1[3]);\n\tF2[3] = (((F1[1]>>2)&1)^(F1[2]^0x1b));\n"
-    assert rounds[1].synthesize_c() == "\t// Round F3\n\tF3[1] = F2[1];\n\tF3[2] = F2[2];\n"
+    assert rounds[1].synthesize_c() == "\t// Round F3\n\tF3[1] = F2[1];\n" + \
+            "\tF3[2] = F2[2];\n" + \
+            "\tF3[3] = (F3[3] & (((1<<8)-1)^(1<<0))) | ((((F2[3]>>0)&1)<<0) & (1<<0))\n" + \
+            "\tF3[3] = (F3[3] & (((1<<8)-1)^((1<<6)-(1<<4)))) |" + \
+                " ((((F2[3]>>2)&((1<<2)-1))<<4) & ((1<<6)-(1<<4)))\n" + \
+            "\tF3[3] = (F3[3] & (((1<<8)-1)^((1<<4)-(1<<2)))) |" + \
+                " ((((F2[3]>>4)&((1<<2)-1))<<2) & ((1<<4)-(1<<2)))\n"
 
 def test_generic_rounds_parser():
     # Parsing tests
