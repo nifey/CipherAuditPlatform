@@ -476,7 +476,7 @@ class Part:
                 bit_select_mask         = "((1<<"+str(bit_select_msb+1)+")-(1<<"+str(bit_select_lsb)+"))"
                 bit_select_inverse_mask = "(((1<<8)-1)^"+str(bit_select_mask)+")" # FIXME Byte len hardcoded
             return byte + " = (" + byte + " & " + bit_select_inverse_mask + ") | " + \
-                    "((" + rhs_statement + "<<" + str(bit_select_lsb)+ ") & " + bit_select_mask + ")"
+                    "((" + rhs_statement + "<<" + str(bit_select_lsb)+ ") & " + bit_select_mask + ");"
         else:
             return self.output_value + " = " + \
                     synthesize_c_statement_tokens(self.function_tokens, self.generics_values) + ";"
