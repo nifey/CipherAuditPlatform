@@ -225,15 +225,12 @@ def parse_bit_range(value) -> (str, int, int):
         split_index     : int = bit_range.find(":")
         bit_select_msb  : int = int(bit_range[:split_index])
         bit_select_lsb  : int = int(bit_range[split_index+1:])
-        assert bit_select_lsb >= 0 and bit_select_lsb < 8
-        assert bit_select_msb >= 0 and bit_select_msb < 8
         if bit_select_msb < bit_select_lsb: # We support both order indexing
             bit_select_msb, bit_select_lsb = bit_select_lsb, bit_select_msb
     else:
         # Single bit select
         bit_select_msb  : int = int(bit_range)
         bit_select_lsb  : int = bit_select_msb
-        assert bit_select_msb >= 0 and bit_select_msb < 8
     return byte, bit_select_msb, bit_select_lsb
 
 def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
@@ -315,12 +312,10 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
         assert function_name.startswith("F")
 
         if function_name in binary_function_to_symbol_map:
-            assert len(argument_tokens) == 2
             return "(" + synthesize_c_statement_tokens(argument_tokens[0], generics_values, variable_set) \
                 + binary_function_to_symbol_map[function_name]                              \
                 + synthesize_c_statement_tokens(argument_tokens[1], generics_values, variable_set) + ")"
         elif function_name == "F_LKUP":
-            assert len(argument_tokens) == 2
             return synthesize_c_statement_tokens(argument_tokens[1], generics_values, variable_set)  \
                 + "[" + synthesize_c_variable(argument_tokens[0], generics_values) + "]"
         else:
@@ -331,6 +326,27 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
         return "".join([synthesize_c_statement_tokens(t, generics_values, variable_set) for t in tokens])
     else:
         return synthesize_c_variable(tokens, generics_values)
+
+def get_all_function_calls(tokens : ParserElement) -> list[(str,int)]:
+    """Return all function calls and number of arguments passed for validation"""
+    call_list = []
+    if tokens[0] == "<" and tokens[1] == "ret":
+        pass
+    elif tokens[0] == "<" and tokens[2] == ":":
+        assert tokens[-1] == ">"
+        output_variable = tokens[1]
+        statement_tokens = tokens[3:-1]
+        call_list.extend(get_all_function_calls(statement_tokens))
+    elif len(tokens) > 1 and tokens[1] == "(":
+        function_name = "".join(tokens[0])
+        assert tokens[3] == ")"
+        argument_tokens = tokens[2]
+        assert function_name.startswith("F")
+        call_list.append((function_name, len(argument_tokens)))
+    elif isinstance(tokens, list):
+        for token in tokens:
+            call_list.extend(get_all_function_calls(token))
+    return call_list
 
 def get_all_input_values(tokens : ParserElement, generics_values : dict[str,int] = {}) -> set[str]:
     """Return all the input round parts corresponding to the given statement tokens"""
@@ -352,11 +368,9 @@ def get_all_input_values(tokens : ParserElement, generics_values : dict[str,int]
         assert function_name.startswith("F")
 
         if function_name in binary_function_to_symbol_map:
-            assert len(argument_tokens) == 2
             input_value_set.update(get_all_input_values(argument_tokens[0], generics_values))
             input_value_set.update(get_all_input_values(argument_tokens[1], generics_values))
         elif function_name == "F_LKUP":
-            assert len(argument_tokens) == 2
             input_value_set.update(get_all_input_values(argument_tokens[1], generics_values))
             input_value_set.add(synthesize_c_variable(argument_tokens[0], generics_values))
         else:
@@ -460,6 +474,9 @@ class Part:
             for regex_match in re.findall(r"F[0-9]+\[[0-9]+\]", value):
                 input_values.add(regex_match)
         return input_values
+
+    def get_function_calls(self):
+        return get_all_function_calls(self.function_tokens)
 
     def synthesize_c(self) -> str:
         if self.output_value.find("_[") != -1:
@@ -630,6 +647,81 @@ class CipherSpec:
             else:
                 assert False, "Error in parsing"
         self.rounds.sort(key=lambda x: int(x.name[1:]))
+
+        ########################################################
+        # Perform validation checks on the cipher specification
+        ########################################################
+        operation_argument_count = {}
+        for operation in self.operations:
+            function_name = operation.name
+            # Check if a given function/operation name doesn't collide 
+            # with inbuilt or other function, and records the number of 
+            # arguments to be checked later when it is called
+            if function_name in binary_function_to_symbol_map:
+                print(f"Operation name {function_name} collides with inbuilt function name")
+                exit()
+            elif function_name in operation_argument_count:
+                print(f"Operation name {function_name} already defined")
+                exit()
+            operation_argument_count[function_name] = len(operation.arguments)
+
+        round_output_values = {}
+        for round in self.rounds:
+            round_name = round.name
+            round_output_values[round_name] = []
+            for part in round.parts:
+                # Check if each round only writes to it's own data
+                if not part.get_output_value().startswith(round_name):
+                    print("Parts of a round should only write to values of the same round")
+                    print(f"Part {part} should write to {round_name}")
+                    exit()
+                round_output_values[round_name].append(part.get_output_value())
+
+                # Check if all the function calls are to valid operations / inbuilt functions
+                # And also check if the right number of arguments have been provided
+                for function_name, num_args in part.get_function_calls():
+                    if function_name in binary_function_to_symbol_map:
+                        if num_args != 2:
+                            print(f"Inbuilt binary function {function_name} takes 2 arguments, {num_args} provided")
+                            exit()
+                    elif function_name == "F_LKUP":
+                        if num_args != 2:
+                            print(f"Lookup function F_LKUP takes 2 arguments, {num_args} provided")
+                            exit()
+                    elif function_name in operation_argument_count:
+                        required_args = operation_argument_count[function_name]
+                        if num_args != required_args:
+                            print(f"Function {function_name} takes {required_args} arguments, {num_args} provided")
+                            exit()
+                    else:
+                        print(f"Function {function_name} is not defined")
+                        exit()
+
+            # Check if the output of the rounds are to non overlapping data,
+            # i.e. we don't expect two writes to the same bits of data
+            output_index_value = {}
+            for output_value in round_output_values[round_name]:
+                if output_value.find("_[") != -1:
+                    byte, bit_select_msb, bit_select_lsb = parse_bit_range(output_value)
+                    assert bit_select_lsb >= 0 and bit_select_lsb < 8
+                    assert bit_select_msb >= 0 and bit_select_msb < 8
+                else:
+                    byte = output_value
+                    bit_select_lsb = 0
+                    bit_select_msb = 7
+                index = int(byte.split("[")[1][:-1])
+                mask = (1<<(bit_select_msb+1)) - (1<<bit_select_lsb)
+                if index not in output_index_value:
+                    output_index_value[index] = {}
+                # Check if this overlaps with already saved output value
+                for old_ouput_value in output_index_value[index]:
+                    if output_index_value[index][old_ouput_value] & mask != 0:
+                        print(f"{old_ouput_value} and {output_value} write to the same bits")
+                        exit()
+                output_index_value[index][output_value] = mask
+
+            # FIXME Also check if the any previous round values are used (not future). 
+            # And that the used value has been defined in the previous round
 
     def __str__(self) -> str:
         output = ""
