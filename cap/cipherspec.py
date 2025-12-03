@@ -738,7 +738,7 @@ class CipherSpec:
         output += "\n".join([operation.synthesize_c() for operation in self.operations]) + "\n"
 
         output += "void encrypt(uint8_t F0[16], uint8_t ciphertext[16]) {\n"
-        output += "\tuint8_t " + ", ".join([round.name+"[64]" for round in self.rounds])+ ";\n" # FIXME Length
+        output += "\tuint8_t " + ", ".join([round.name+"[64]" for round in self.rounds])+ " = {0};\n" # FIXME Length
         output += "\n".join([round.synthesize_c() for round in self.rounds]) + "\n"
 
         for i in range(len(self.rounds) + 1):
