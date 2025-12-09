@@ -23,6 +23,7 @@ Every CSL specification consists of three parts written in between `<begin>` and
     - The body of the operation consists of a sequence of operations that operates on the arguments or constants.
     - For example `< h : F_RS   ( a , 7 ) >` defines a statement where the variable h will be assigned the value `a >> 7`. `F_RS` is an in-built function that performs right shift operation. 
     - List of in-built functions: `F_RS`, `F_LS`, `F_ADD`, `F_SUB`, `F_MUL`, `F_XOR`, `F_AND`, `F_LKUP`, used to perform Right shift, Left shift, Addition, Subtraction, Multiplication, XOR, AND and array/declaration indexing, respectively.
+    - Note that because in AES the word size is a byte, we add the AND operation with a bitmask that corresponds to a byte. By default, the word size used during synthesis is 64 bits and so we have to explicitly add this operation to prevent later buffer overflows in S-BOX accesses.
     - The operation body can at last return the value of a computed variable using the return statement. For example `< ret m >`, returns the value held in variable `m` inside the operation body.
     - In AES, we define operations to perform the Galois Field multiplication used during the MixColumn rounds.
     ```
@@ -32,12 +33,14 @@ Every CSL specification consists of three parts written in between `<begin>` and
             < t : F_LS   ( a , 1 ) >
             < n : F_MUL  ( h , '0x1b' ) >
             < m : F_XOR  ( n , t ) >
-            < ret m >
+            < o : F_AND  ( m , '0xff' ) >
+            < ret o >
         </func>
         <func> < F_MUL3  ( a ) >
             < x : F_MUL2 ( a ) >
             < t : F_XOR  ( a , x ) >
-            < ret t >
+            < o : F_AND  ( t , '0xff' ) >
+            < ret o >
         </func>
     </operation>
     ```

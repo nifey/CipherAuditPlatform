@@ -13,33 +13,38 @@
             < t : F_LS ( a , 1 ) >
             < n : F_MUL ( h , '0x1d' ) >
             < m : F_XOR ( n , t ) >
-            < ret m >
+            < o : F_AND  ( m , '0xff' ) >
+            < ret o >
         </func>
 
         <func> < F_MUL4 ( a ) >
             < x : F_MUL2 ( a ) >
             < t : F_MUL2 ( x ) >
-            < ret t >
+            < o : F_AND  ( t , '0xff' ) >
+            < ret o >
         </func>
 
         <func> < F_MUL6 ( a ) >
             < x : F_MUL4 ( a ) >
             < y : F_MUL2 ( a ) >
             < t : F_XOR ( x ,y ) >
-            < ret t >
+            < o : F_AND  ( t , '0xff' ) >
+            < ret o >
         </func>
 
         <func> < F_MUL8 ( a ) >
             < x : F_MUL4 ( a ) >
             < t : F_MUL2 ( x ) >
-            < ret t >
+            < o : F_AND  ( t , '0xff' ) >
+            < ret o >
         </func>
 
         <func> < F_MUL10 ( a ) >
             < x : F_MUL8 ( a ) >
             < y : F_MUL2 ( a ) >
             < t : F_XOR ( x ,y ) >
-            < ret t >
+            < o : F_AND  ( t , '0xff' ) >
+            < ret o >
         </func>
     </operation>
 

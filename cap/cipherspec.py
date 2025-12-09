@@ -154,9 +154,9 @@ class Declaration:
 
     def synthesize_c(self) -> str:
         if len(self.data) == 0:
-            return "uint8_t " + self.name + "[" + str(self.len) + "];\n"
+            return "uint64_t " + self.name + "[" + str(self.len) + "];\n"
         else:
-            return "uint8_t " + self.name + "[" + str(self.len) + "] = { "  \
+            return "uint64_t " + self.name + "[" + str(self.len) + "] = { "  \
                 + ", ".join(["0x"+x for x in self.data]) + " };\n"
 
 def evaluate_generic_expression(expression: str, variable: str, value: int, operators : list[str] = ["-", "+", "*"]):
@@ -218,7 +218,7 @@ def parse_bit_range(value) -> (str, int, int):
     if value.find("_[") == -1:
         assert False
     separator_index : int = value.find("_[")
-    byte : str = value[:separator_index]
+    word : str = value[:separator_index]
     bit_range = value[separator_index+2:-1]
     if bit_range.find(":") != -1:
         # Bit range select
@@ -231,7 +231,7 @@ def parse_bit_range(value) -> (str, int, int):
         # Single bit select
         bit_select_msb  : int = int(bit_range)
         bit_select_lsb  : int = bit_select_msb
-    return byte, bit_select_msb, bit_select_lsb
+    return word, bit_select_msb, bit_select_lsb
 
 def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
     """Generate C code corresponding to the given variable"""
@@ -240,14 +240,14 @@ def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int
         return value[1,-1]
     value = instantiate_generics_on_string(value, generics_values)
     if value.find("_[") != -1:
-        byte, bit_select_msb, bit_select_lsb = parse_bit_range(value)
+        word, bit_select_msb, bit_select_lsb = parse_bit_range(value)
         if bit_select_msb == bit_select_lsb:
             # Single bit select
-            return "((" + byte + ">>" + str(bit_select_lsb) + ")&1)"
+            return "((" + word + ">>" + str(bit_select_lsb) + ")&1)"
         else:
             # Bit range select
             bit_select_len  : int = bit_select_msb - bit_select_lsb
-            return "((" + byte + ">>" + str(bit_select_lsb) + \
+            return "((" + word + ">>" + str(bit_select_lsb) + \
                     ")&((1<<" + str(bit_select_len+1) + ")-1))"
     else:
         return value
@@ -427,14 +427,14 @@ class Operation:
                 + "\n\t".join([str(x) for x in self.statements]) + "\n}"
 
     def synthesize_c(self) -> str:
-        output = "uint8_t " + self.name[2:] + " (" + ", ".join(["uint8_t "+x for x in self.arguments]) + ") {\n"
+        output = "uint64_t " + self.name[2:] + " (" + ", ".join(["uint64_t "+x for x in self.arguments]) + ") {\n"
         variable_set = set()
         statement_string = ""
         for statement in self.statements:
             statement_string += statement.synthesize_c(variable_set)
         # Declare the required variables before adding the statement synthesis
         if len(variable_set) > 0:
-            output += "\tuint8_t " + ", ".join(sorted(variable_set)) + ";\n"
+            output += "\tuint64_t " + ", ".join(sorted(variable_set)) + ";\n"
         output += statement_string
         output += "}\n"
         return output
@@ -483,7 +483,7 @@ class Part:
             # We have to handle bit select on the output value differently 
             # when compared to bit handling in synthesize_c_variable
             rhs_statement = synthesize_c_statement_tokens(self.function_tokens, self.generics_values)
-            byte, bit_select_msb, bit_select_lsb = parse_bit_range(self.output_value)
+            word, bit_select_msb, bit_select_lsb = parse_bit_range(self.output_value)
             if bit_select_msb == bit_select_lsb:
                 # Single bit select
                 bit_select_mask         = "(1<<"+str(bit_select_lsb)+")"
@@ -492,7 +492,7 @@ class Part:
                 # Bit range select
                 bit_select_mask         = "((1<<"+str(bit_select_msb+1)+")-(1<<"+str(bit_select_lsb)+"))"
                 bit_select_inverse_mask = "(((1<<8)-1)^"+str(bit_select_mask)+")" # FIXME Byte len hardcoded
-            return byte + " = (" + byte + " & " + bit_select_inverse_mask + ") | " + \
+            return word + " = (" + word + " & " + bit_select_inverse_mask + ") | " + \
                     "((" + rhs_statement + "<<" + str(bit_select_lsb)+ ") & " + bit_select_mask + ");"
         else:
             return self.output_value + " = " + \
@@ -711,14 +711,14 @@ class CipherSpec:
             output_index_value = {}
             for output_value in round_output_values[round_name]:
                 if output_value.find("_[") != -1:
-                    byte, bit_select_msb, bit_select_lsb = parse_bit_range(output_value)
+                    word, bit_select_msb, bit_select_lsb = parse_bit_range(output_value)
                     assert bit_select_lsb >= 0 and bit_select_lsb < 8
                     assert bit_select_msb >= 0 and bit_select_msb < 8
                 else:
-                    byte = output_value
+                    word = output_value
                     bit_select_lsb = 0
                     bit_select_msb = 7
-                index = int(byte.split("[")[1][:-1])
+                index = int(word.split("[")[1][:-1])
                 mask = (1<<(bit_select_msb+1)) - (1<<bit_select_lsb)
                 if index not in output_index_value:
                     output_index_value[index] = {}
@@ -733,7 +733,7 @@ class CipherSpec:
             # And that the used value has been defined in the previous round
 
     def input_length(self) -> int:
-        """Return the number of bytes that the cipher takes as (plaintext) input"""
+        """Return the number of words that the cipher takes as (plaintext) input"""
         max_index = 0
         for part in self.rounds[0].parts:
             for value in part.get_input_values():
@@ -759,34 +759,34 @@ class CipherSpec:
         plaintext_length = self.input_length()
         ciphertext_length = self.rounds[-1].length() # Length of last round
 
-        output += "void encrypt(uint8_t F0[" + str(plaintext_length) + \
-                "], uint8_t ciphertext[" + str(ciphertext_length) + "]) {\n"
-        output += "\tuint8_t " + \
+        output += "void encrypt(uint64_t F0[" + str(plaintext_length) + \
+                "], uint64_t ciphertext[" + str(ciphertext_length) + "]) {\n"
+        output += "\tuint64_t " + \
                 ", ".join([round.name + "[" + str(round.length()) + "] = {0}"
                            for round in self.rounds]) + ";\n\n"
         output += "\n".join([round.synthesize_c() for round in self.rounds]) + "\n"
 
         output += "\tprintf(\"\\nF0\\t\");\n"
         output += "\tfor (int i=0; i<" + str(plaintext_length) + "; i++)\n"
-        output += "\t\tprintf(\"%02x \", F0[i]);\n"
+        output += "\t\tprintf(\"%02lx \", F0[i]);\n"
 
         for i, round in enumerate(self.rounds):
             output += "\tprintf(\"\\nF" + str(i+1) + "\\t\");\n"
             output += "\tfor (int i=0; i<" + str(round.length()) + "; i++)\n"
-            output += "\t\tprintf(\"%02x \", F" + str(i+1) + "[i]);\n"
+            output += "\t\tprintf(\"%02lx \", F" + str(i+1) + "[i]);\n"
 
         output += "\tfor (int i=0; i<" + str(ciphertext_length) + "; i++)\n"
         output += "\t\tciphertext[i] = F" + str(len(self.rounds)) + "[i];\n"
         output += "}\n\n"
 
         output += "int main() {\n"
-        output += "\tuint8_t plaintext[" + str(plaintext_length) + "] = {" + \
+        output += "\tuint64_t plaintext[" + str(plaintext_length) + "] = {" + \
                 ", ".join([hex(x) for x in range(plaintext_length)]) + "};\n"
-        output += "\tuint8_t ciphertext[" + str(ciphertext_length) + "];\n"
+        output += "\tuint64_t ciphertext[" + str(ciphertext_length) + "];\n"
         output += "\tencrypt(plaintext, ciphertext);\n"
         output += "\tprintf(\"\\nFinal\\t\");\n"
         output += "\tfor (int i=0;i<" + str(ciphertext_length) + ";i++)\n"
-        output += "\t\tprintf(\"%02x \", ciphertext[i]);\n"
+        output += "\t\tprintf(\"%02lx \", ciphertext[i]);\n"
         output += "}"
 
         return output
