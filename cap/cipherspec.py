@@ -575,6 +575,15 @@ class Round:
                 new_parts.append(new_part)
         self.parts = new_parts
 
+    def length(self) -> int:
+        max_index = 0
+        for part in self.parts:
+            output_value = part.get_output_value()
+            index = int(re.match(r'F[0-9]+\[([0-9]+)\]', output_value).groups()[0])
+            if index > max_index:
+                max_index = index
+        return max_index + 1
+
     def synthesize_c(self) -> str:
         output = "\t// Round " + self.name + "\n\t"
         output += "\n\t".join([part.synthesize_c() for part in self.parts]) + "\n"
@@ -723,6 +732,16 @@ class CipherSpec:
             # FIXME Also check if the any previous round values are used (not future). 
             # And that the used value has been defined in the previous round
 
+    def input_length(self) -> int:
+        """Return the number of bytes that the cipher takes as (plaintext) input"""
+        max_index = 0
+        for part in self.rounds[0].parts:
+            for value in part.get_input_values():
+                index = int(re.match(r'F[0-9]+\[([0-9]+)\]', value).groups()[0])
+                if index > max_index:
+                    max_index = index
+        return max_index + 1
+
     def __str__(self) -> str:
         output = ""
         if len(self.declarations) > 0:
@@ -737,17 +756,37 @@ class CipherSpec:
         output += "\n".join([declaration.synthesize_c() for declaration in self.declarations]) + "\n"
         output += "\n".join([operation.synthesize_c() for operation in self.operations]) + "\n"
 
-        output += "void encrypt(uint8_t F0[16], uint8_t ciphertext[16]) {\n"
-        output += "\tuint8_t " + ", ".join([round.name+"[64]" for round in self.rounds])+ " = {0};\n" # FIXME Length
+        plaintext_length = self.input_length()
+        ciphertext_length = self.rounds[-1].length() # Length of last round
+
+        output += "void encrypt(uint8_t F0[" + str(plaintext_length) + \
+                "], uint8_t ciphertext[" + str(ciphertext_length) + "]) {\n"
+        output += "\tuint8_t " + \
+                ", ".join([round.name + "[" + str(round.length()) + "] = {0}"
+                           for round in self.rounds]) + ";\n\n"
         output += "\n".join([round.synthesize_c() for round in self.rounds]) + "\n"
 
-        for i in range(len(self.rounds) + 1):
-            output += "\tprintf(\"\\nF" + str(i) + "\\t\");\n\tfor (int i=0; i<16; i++)\n\t\tprintf(\"%02x \", F" + str(i) + "[i]);\n"
-        output += "\tfor (int i=0; i<16; i++)\n\t\tciphertext[i] = F" + str(len(self.rounds)) + "[i];\n"
+        output += "\tprintf(\"\\nF0\\t\");\n"
+        output += "\tfor (int i=0; i<" + str(plaintext_length) + "; i++)\n"
+        output += "\t\tprintf(\"%02x \", F0[i]);\n"
+
+        for i, round in enumerate(self.rounds):
+            output += "\tprintf(\"\\nF" + str(i+1) + "\\t\");\n"
+            output += "\tfor (int i=0; i<" + str(round.length()) + "; i++)\n"
+            output += "\t\tprintf(\"%02x \", F" + str(i+1) + "[i]);\n"
+
+        output += "\tfor (int i=0; i<" + str(ciphertext_length) + "; i++)\n"
+        output += "\t\tciphertext[i] = F" + str(len(self.rounds)) + "[i];\n"
         output += "}\n\n"
 
         output += "int main() {\n"
-        output += "\tuint8_t plaintext[16] = {0x00, 0x01, 0x02, 0x03, 0x04, 0x05 , 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f};\n\tuint8_t ciphertext[16];\n\tencrypt(plaintext, ciphertext);\n\tprintf(\"\\nFinal\\t\");\n\tfor (int i=0;i<16;i++)\n\t\tprintf(\"%02x \", ciphertext[i]);\n"
+        output += "\tuint8_t plaintext[" + str(plaintext_length) + "] = {" + \
+                ", ".join([hex(x) for x in range(plaintext_length)]) + "};\n"
+        output += "\tuint8_t ciphertext[" + str(ciphertext_length) + "];\n"
+        output += "\tencrypt(plaintext, ciphertext);\n"
+        output += "\tprintf(\"\\nFinal\\t\");\n"
+        output += "\tfor (int i=0;i<" + str(ciphertext_length) + ";i++)\n"
+        output += "\t\tprintf(\"%02x \", ciphertext[i]);\n"
         output += "}"
 
         return output
