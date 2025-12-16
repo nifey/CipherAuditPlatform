@@ -243,12 +243,11 @@ def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int
         word, bit_select_msb, bit_select_lsb = parse_bit_range(value)
         if bit_select_msb == bit_select_lsb:
             # Single bit select
-            return "((" + word + ">>" + str(bit_select_lsb) + ")&1)"
+            return "BIT_SELECT(" + word + "," + str(bit_select_lsb) + ")"
         else:
             # Bit range select
-            bit_select_len  : int = bit_select_msb - bit_select_lsb
-            return "((" + word + ">>" + str(bit_select_lsb) + \
-                    ")&((1<<" + str(bit_select_len+1) + ")-1))"
+            return "BITRANGE_SELECT(" + word + "," + str(bit_select_msb) + \
+                    "," + str(bit_select_lsb) + ")"
     else:
         return value
 
@@ -486,12 +485,12 @@ class Part:
             word, bit_select_msb, bit_select_lsb = parse_bit_range(self.output_value)
             if bit_select_msb == bit_select_lsb:
                 # Single bit select
-                bit_select_mask         = "(1<<"+str(bit_select_lsb)+")"
-                bit_select_inverse_mask = "(((1<<8)-1)^"+str(bit_select_mask)+")" # FIXME Byte len hardcoded
+                bit_select_mask         = "BIT("+str(bit_select_lsb)+")"
+                bit_select_inverse_mask = "(BITMASK(63)^"+str(bit_select_mask)+")" # 64 bit words
             else:
                 # Bit range select
-                bit_select_mask         = "((1<<"+str(bit_select_msb+1)+")-(1<<"+str(bit_select_lsb)+"))"
-                bit_select_inverse_mask = "(((1<<8)-1)^"+str(bit_select_mask)+")" # FIXME Byte len hardcoded
+                bit_select_mask         = "BITRANGE_BITMASK("+str(bit_select_msb)+","+str(bit_select_lsb)+")"
+                bit_select_inverse_mask = "(BITMASK(63)^"+str(bit_select_mask)+")" # 64 bit words
             return word + " = (" + word + " & " + bit_select_inverse_mask + ") | " + \
                     "((" + rhs_statement + "<<" + str(bit_select_lsb)+ ") & " + bit_select_mask + ");"
         else:
@@ -752,7 +751,17 @@ class CipherSpec:
         return output
 
     def synthesize_c(self) -> str:
-        output = "#include<stdio.h>\n#include<stdlib.h>\n#include<math.h>\n#include<stdint.h>\n\n"
+        output =  "#include<stdio.h>\n"
+        output += "#include<stdlib.h>\n"
+        output += "#include<math.h>\n"
+        output += "#include<stdint.h>\n"
+        output += "\n"
+        output += "#define BIT(index) (1UL<<index)\n"
+        output += "#define BITMASK(index) (BIT(index+1)-1)\n"
+        output += "#define BIT_SELECT(word,index) ((word>>index) & 1)\n"
+        output += "#define BITRANGE_BITMASK(msb,lsb) (BIT(msb+1)-BIT(lsb))\n"
+        output += "#define BITRANGE_SELECT(word,msb,lsb) ((word & BITRANGE_BITMASK(msb,lsb))>>lsb)\n"
+        output += "\n"
         output += "\n".join([declaration.synthesize_c() for declaration in self.declarations]) + "\n"
         output += "\n".join([operation.synthesize_c() for operation in self.operations]) + "\n"
 

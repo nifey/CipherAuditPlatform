@@ -135,14 +135,14 @@ def test_rounds_parser():
     assert rounds[1].parts[1].get_input_values() == set(["F2[2]"])
 
     # Synthesis tests
-    assert rounds[0].synthesize_c() == "\t// Round F2\n\tF2[1] = SBOX[F1[1]];\n\tF2[2] = (SBOX[F1[2]]^F1[3]);\n\tF2[3] = (((F1[1]>>2)&1)^(F1[2]^0x1b));\n"
+    assert rounds[0].synthesize_c() == "\t// Round F2\n\tF2[1] = SBOX[F1[1]];\n\tF2[2] = (SBOX[F1[2]]^F1[3]);\n\tF2[3] = (BIT_SELECT(F1[1],2)^(F1[2]^0x1b));\n"
     assert rounds[1].synthesize_c() == "\t// Round F3\n\tF3[1] = F2[1];\n" + \
             "\tF3[2] = F2[2];\n" + \
-            "\tF3[3] = (F3[3] & (((1<<8)-1)^(1<<0))) | ((((F2[3]>>0)&1)<<0) & (1<<0));\n" + \
-            "\tF3[3] = (F3[3] & (((1<<8)-1)^((1<<6)-(1<<4)))) |" + \
-                " ((((F2[3]>>2)&((1<<2)-1))<<4) & ((1<<6)-(1<<4)));\n" + \
-            "\tF3[3] = (F3[3] & (((1<<8)-1)^((1<<4)-(1<<2)))) |" + \
-                " ((((F2[3]>>4)&((1<<2)-1))<<2) & ((1<<4)-(1<<2)));\n"
+            "\tF3[3] = (F3[3] & (BITMASK(63)^BIT(0))) | ((BIT_SELECT(F2[3],0)<<0) & BIT(0));\n" + \
+            "\tF3[3] = (F3[3] & (BITMASK(63)^BITRANGE_BITMASK(5,4))) |" + \
+                " ((BITRANGE_SELECT(F2[3],3,2)<<4) & BITRANGE_BITMASK(5,4));\n" + \
+            "\tF3[3] = (F3[3] & (BITMASK(63)^BITRANGE_BITMASK(3,2))) |" + \
+                " ((BITRANGE_SELECT(F2[3],5,4)<<2) & BITRANGE_BITMASK(3,2));\n"
 
 def test_generic_rounds_parser():
     # Parsing tests
