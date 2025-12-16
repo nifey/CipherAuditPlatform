@@ -22,7 +22,6 @@ Every CSL specification consists of three parts written in between `<begin>` and
     - The operations are defined between `<operation>` and `</operation>` tags. The individual operations are defined between `<func>` and `</func>` tags. The tag following the `<func>` tag, specifies the name of the operation and the arguments used.
     - The body of the operation consists of a sequence of operations that operates on the arguments or constants.
     - For example `< h : F_RS   ( a , 7 ) >` defines a statement where the variable h will be assigned the value `a >> 7`. `F_RS` is an in-built function that performs right shift operation. 
-    - List of in-built functions: `F_RS`, `F_LS`, `F_ADD`, `F_SUB`, `F_MUL`, `F_XOR`, `F_AND`, `F_LKUP`, used to perform Right shift, Left shift, Addition, Subtraction, Multiplication, XOR, AND and array/declaration indexing, respectively.
     - Note that because in AES the word size is a byte, we add the AND operation with a bitmask that corresponds to a byte. By default, the word size used during synthesis is 64 bits and so we have to explicitly add this operation to prevent later buffer overflows in S-BOX accesses.
     - The operation body can at last return the value of a computed variable using the return statement. For example `< ret m >`, returns the value held in variable `m` inside the operation body.
     - In AES, we define operations to perform the Galois Field multiplication used during the MixColumn rounds.
@@ -86,6 +85,22 @@ Every CSL specification consists of three parts written in between `<begin>` and
 The complete specification of AES can be found [here](../specifications/AES_128.csl).
 
 ### Other language features
+
+#### List of in-built functions
+
+- `F_RS(value, shift)` : Right shift
+- `F_LS(value, shift)` : Left shift
+- `F_ADD(value1, value2)` : Addition of two values
+- `F_SUB(value1, value2)` : Subtraction of two values
+- `F_MUL(value1, value2)` : Multiplication of two values
+- `F_DIV(dividend, divisor)` : (Integer) Division of two values
+- `F_MOD(dividend, divisor)` : Remainder of two values
+- `F_OR(value1, value2)`  : Logical OR of two values
+- `F_XOR(value1, value2)` : Logical XOR of two values
+- `F_AND(value1, value2)` : Logical AND of two values
+- `F_LKUP(array, index)`: Lookup the Declaration `array` with index `index`
+- `F_ROR(value, rotate_bits)`: Rotates right the `value` by `rotate_bits` bits. The value must have a bitslice index to denote which range of bits to rotate.
+- `F_ROL(value, rotate_bits)`: Rotates left the `value` by `rotate_bits` bits. The value must have a bitslice index to denote which range of bits to rotate.
 
 #### Bit slicing
 - By default, every part in CSL operates on a byte. CSL also supports operating on certain bits within the byte using bit slicing suffix `_[`. For example, `F2[15]_[3]` represents the 3rd bit inside `F2[15]` (where 0 represents the least significant bit and 7 represents the most significant bit).

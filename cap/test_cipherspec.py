@@ -118,6 +118,8 @@ def test_rounds_parser():
         < F3[3]_[0] : F2[3]_[0] >
         < F3[3]_[4:5] : F2[3]_[2:3] >
         < F3[3]_[3:2] : F2[3]_[5:4] >
+        < F3[4]_[7:4] : F_ROL(F2[3]_[3:0], 3) >
+        < F3[4]_[3:0] : F_ROR(F2[3]_[5:2], 3) >
     />
         """)
     assert len(rounds) == 2
@@ -130,7 +132,7 @@ def test_rounds_parser():
     assert rounds[1].name == "F3"
     assert rounds[1].linearity == "linear"
     assert rounds[1].type == "SWAP"
-    assert len(rounds[1].parts) == 5
+    assert len(rounds[1].parts) == 7
     assert rounds[1].parts[1].output_value == "F3[2]"
     assert rounds[1].parts[1].get_input_values() == set(["F2[2]"])
 
@@ -142,7 +144,11 @@ def test_rounds_parser():
             "\tF3[3] = (F3[3] & (BITMASK(63)^BITRANGE_BITMASK(5,4))) |" + \
                 " ((BITRANGE_SELECT(F2[3],3,2)<<4) & BITRANGE_BITMASK(5,4));\n" + \
             "\tF3[3] = (F3[3] & (BITMASK(63)^BITRANGE_BITMASK(3,2))) |" + \
-                " ((BITRANGE_SELECT(F2[3],5,4)<<2) & BITRANGE_BITMASK(3,2));\n"
+                " ((BITRANGE_SELECT(F2[3],5,4)<<2) & BITRANGE_BITMASK(3,2));\n" + \
+            "\tF3[4] = (F3[4] & (BITMASK(63)^BITRANGE_BITMASK(7,4))) |" + \
+                " (((((BITRANGE_SELECT(F2[3],3,0)&BITMASK(0))<<3)|((BITRANGE_SELECT(F2[3],3,0)>>1)&BITMASK(2)))<<4) & BITRANGE_BITMASK(7,4));\n" + \
+            "\tF3[4] = (F3[4] & (BITMASK(63)^BITRANGE_BITMASK(3,0))) |" + \
+                " (((((BITRANGE_SELECT(F2[3],5,2)<<1)&BITMASK(3))|(BITRANGE_SELECT(F2[3],5,2)>>3))<<0) & BITRANGE_BITMASK(3,0));\n"
 
 def test_generic_rounds_parser():
     # Parsing tests

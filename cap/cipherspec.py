@@ -317,6 +317,29 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
         elif function_name == "F_LKUP":
             return synthesize_c_statement_tokens(argument_tokens[1], generics_values, variable_set)  \
                 + "[" + synthesize_c_variable(argument_tokens[0], generics_values) + "]"
+        elif function_name == "F_ROR" or function_name == "F_ROL":
+            value           = "".join(argument_tokens[0])
+            rotate_bits     = int(argument_tokens[1])
+            if value.find("_[") == -1:
+                print(f"Error: {function_name} first argument {value} must have a bit range")
+                exit()
+            word, bit_select_msb, bit_select_lsb = parse_bit_range(value)
+            bit_length = bit_select_msb - bit_select_lsb + 1
+            if rotate_bits > bit_length:
+                print(f"Error: In {function_name}, {value} has rotate bits {rotate_bits} greater than bitslice length {bit_length}")
+                exit()
+            bits_to_rotate = f"BITRANGE_SELECT({word},{bit_select_msb},{bit_select_lsb})"
+
+            if function_name == "F_ROR":
+                right_part = "(" + bits_to_rotate + ">>" + str(rotate_bits) + ")"
+                left_part = "((" + bits_to_rotate + "<<" + str(bit_length-rotate_bits) + \
+                        ")&BITMASK("+ str(bit_length-1) + "))"
+            elif function_name == "F_ROL":
+                right_part = "((" + bits_to_rotate + ">>" + str(bit_length-rotate_bits) + \
+                        ")&BITMASK("+ str(rotate_bits-1) + "))"
+                left_part = "((" + bits_to_rotate + "&BITMASK(" + \
+                        str(bit_length-rotate_bits-1) + "))<<" + str(rotate_bits) + ")"
+            return "(" + left_part + "|" + right_part + ")"
         else:
             assert function_name.startswith("F_")
             return function_name[2:] + "(" + ", ".join(  \
@@ -372,6 +395,8 @@ def get_all_input_values(tokens : ParserElement, generics_values : dict[str,int]
         elif function_name == "F_LKUP":
             input_value_set.update(get_all_input_values(argument_tokens[1], generics_values))
             input_value_set.add(synthesize_c_variable(argument_tokens[0], generics_values))
+        elif function_name == "F_ROR" or function_name == "F_ROL":
+            input_value_set.update(get_all_input_values(argument_tokens[0], generics_values))
         else:
             assert function_name.startswith("F_")
             for token in argument_tokens:
@@ -695,6 +720,10 @@ class CipherSpec:
                     elif function_name == "F_LKUP":
                         if num_args != 2:
                             print(f"Lookup function F_LKUP takes 2 arguments, {num_args} provided")
+                            exit()
+                    elif function_name == "F_ROR" or function_name == "F_ROL":
+                        if num_args != 2:
+                            print(f"Rotate functions takes 2 arguments, {num_args} provided")
                             exit()
                     elif function_name in operation_argument_count:
                         required_args = operation_argument_count[function_name]
