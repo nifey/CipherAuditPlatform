@@ -740,12 +740,12 @@ class CipherSpec:
             for output_value in round_output_values[round_name]:
                 if output_value.find("_[") != -1:
                     word, bit_select_msb, bit_select_lsb = parse_bit_range(output_value)
-                    assert bit_select_lsb >= 0 and bit_select_lsb < 8
-                    assert bit_select_msb >= 0 and bit_select_msb < 8
+                    assert bit_select_lsb >= 0 and bit_select_lsb < 64
+                    assert bit_select_msb >= 0 and bit_select_msb < 64
                 else:
                     word = output_value
                     bit_select_lsb = 0
-                    bit_select_msb = 7
+                    bit_select_msb = 63
                 index = int(word.split("[")[1][:-1])
                 mask = (1<<(bit_select_msb+1)) - (1<<bit_select_lsb)
                 if index not in output_index_value:
