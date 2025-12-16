@@ -511,11 +511,11 @@ class Part:
             if bit_select_msb == bit_select_lsb:
                 # Single bit select
                 bit_select_mask         = "BIT("+str(bit_select_lsb)+")"
-                bit_select_inverse_mask = "(BITMASK(63)^"+str(bit_select_mask)+")" # 64 bit words
+                bit_select_inverse_mask = "(~"+str(bit_select_mask)+")"
             else:
                 # Bit range select
                 bit_select_mask         = "BITRANGE_BITMASK("+str(bit_select_msb)+","+str(bit_select_lsb)+")"
-                bit_select_inverse_mask = "(BITMASK(63)^"+str(bit_select_mask)+")" # 64 bit words
+                bit_select_inverse_mask = "(~"+str(bit_select_mask)+")"
             return word + " = (" + word + " & " + bit_select_inverse_mask + ") | " + \
                     "((" + rhs_statement + "<<" + str(bit_select_lsb)+ ") & " + bit_select_mask + ");"
         else:

@@ -140,14 +140,14 @@ def test_rounds_parser():
     assert rounds[0].synthesize_c() == "\t// Round F2\n\tF2[1] = SBOX[F1[1]];\n\tF2[2] = (SBOX[F1[2]]^F1[3]);\n\tF2[3] = (BIT_SELECT(F1[1],2)^(F1[2]^0x1b));\n"
     assert rounds[1].synthesize_c() == "\t// Round F3\n\tF3[1] = F2[1];\n" + \
             "\tF3[2] = F2[2];\n" + \
-            "\tF3[3] = (F3[3] & (BITMASK(63)^BIT(0))) | ((BIT_SELECT(F2[3],0)<<0) & BIT(0));\n" + \
-            "\tF3[3] = (F3[3] & (BITMASK(63)^BITRANGE_BITMASK(5,4))) |" + \
+            "\tF3[3] = (F3[3] & (~BIT(0))) | ((BIT_SELECT(F2[3],0)<<0) & BIT(0));\n" + \
+            "\tF3[3] = (F3[3] & (~BITRANGE_BITMASK(5,4))) |" + \
                 " ((BITRANGE_SELECT(F2[3],3,2)<<4) & BITRANGE_BITMASK(5,4));\n" + \
-            "\tF3[3] = (F3[3] & (BITMASK(63)^BITRANGE_BITMASK(3,2))) |" + \
+            "\tF3[3] = (F3[3] & (~BITRANGE_BITMASK(3,2))) |" + \
                 " ((BITRANGE_SELECT(F2[3],5,4)<<2) & BITRANGE_BITMASK(3,2));\n" + \
-            "\tF3[4] = (F3[4] & (BITMASK(63)^BITRANGE_BITMASK(7,4))) |" + \
+            "\tF3[4] = (F3[4] & (~BITRANGE_BITMASK(7,4))) |" + \
                 " (((((BITRANGE_SELECT(F2[3],3,0)&BITMASK(0))<<3)|((BITRANGE_SELECT(F2[3],3,0)>>1)&BITMASK(2)))<<4) & BITRANGE_BITMASK(7,4));\n" + \
-            "\tF3[4] = (F3[4] & (BITMASK(63)^BITRANGE_BITMASK(3,0))) |" + \
+            "\tF3[4] = (F3[4] & (~BITRANGE_BITMASK(3,0))) |" + \
                 " (((((BITRANGE_SELECT(F2[3],5,2)<<1)&BITMASK(3))|(BITRANGE_SELECT(F2[3],5,2)>>3))<<0) & BITRANGE_BITMASK(3,0));\n"
 
 def test_generic_rounds_parser():
