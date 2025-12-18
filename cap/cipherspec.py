@@ -318,11 +318,16 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
             return synthesize_c_statement_tokens(argument_tokens[1], generics_values, variable_set)  \
                 + "[" + synthesize_c_variable(argument_tokens[0], generics_values) + "]"
         elif function_name == "F_ROR" or function_name == "F_ROL":
+            for token in argument_tokens[0]:
+                if not isinstance(token, str):
+                    print(f"Error: {function_name} does not support nested functions in the first argument")
+                    exit()
             value           = "".join(argument_tokens[0])
             rotate_bits     = int(argument_tokens[1])
             if value.find("_[") == -1:
                 print(f"Error: {function_name} first argument {value} must have a bit range")
                 exit()
+            value = instantiate_generics_on_string(value, generics_values)
             word, bit_select_msb, bit_select_lsb = parse_bit_range(value)
             bit_length = bit_select_msb - bit_select_lsb + 1
             if rotate_bits > bit_length:
