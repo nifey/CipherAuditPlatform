@@ -233,6 +233,18 @@ def parse_bit_range(value) -> (str, int, int):
         bit_select_lsb  : int = bit_select_msb
     return word, bit_select_msb, bit_select_lsb
 
+def get_input_variable(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
+    """Get input variable name"""
+    value : str = "".join(tokens)
+    if value[0] == "'" and value[-1] == "'":
+        return ""
+    value = instantiate_generics_on_string(value, generics_values)
+    if value.find("_[") != -1:
+        word, _, _ = parse_bit_range(value)
+        return word
+    else:
+        return value
+
 def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
     """Generate C code corresponding to the given variable"""
     value : str = "".join(tokens)
@@ -241,6 +253,7 @@ def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int
     value = instantiate_generics_on_string(value, generics_values)
     if value.find("_[") != -1:
         word, bit_select_msb, bit_select_lsb = parse_bit_range(value)
+        word = re.sub(r'F(\d+)\[', r'F[\1][', word)
         if bit_select_msb == bit_select_lsb:
             # Single bit select
             return "BIT_SELECT(" + word + "," + str(bit_select_lsb) + ")"
@@ -249,7 +262,7 @@ def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int
             return "BITRANGE_SELECT(" + word + "," + str(bit_select_msb) + \
                     "," + str(bit_select_lsb) + ")"
     else:
-        return value
+        return re.sub(r'F(\d+)\[', r'F[\1][', value)
 
 binary_function_to_symbol_map = {
         "F_ADD": "+",   "F_SUB": "-",
@@ -329,6 +342,7 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
                 exit()
             value = instantiate_generics_on_string(value, generics_values)
             word, bit_select_msb, bit_select_lsb = parse_bit_range(value)
+            word = re.sub(r'F(\d+)\[', r'F[\1][', word)
             bit_length = bit_select_msb - bit_select_lsb + 1
             if rotate_bits > bit_length:
                 print(f"Error: In {function_name}, {value} has rotate bits {rotate_bits} greater than bitslice length {bit_length}")
@@ -399,7 +413,7 @@ def get_all_input_values(tokens : ParserElement, generics_values : dict[str,int]
             input_value_set.update(get_all_input_values(argument_tokens[1], generics_values))
         elif function_name == "F_LKUP":
             input_value_set.update(get_all_input_values(argument_tokens[1], generics_values))
-            input_value_set.add(synthesize_c_variable(argument_tokens[0], generics_values))
+            input_value_set.add(get_input_variable(argument_tokens[0], generics_values))
         elif function_name == "F_ROR" or function_name == "F_ROL":
             input_value_set.update(get_all_input_values(argument_tokens[0], generics_values))
         else:
@@ -410,7 +424,7 @@ def get_all_input_values(tokens : ParserElement, generics_values : dict[str,int]
         for token in tokens:
             input_value_set.update(get_all_input_values(token, generics_values))
     else:
-        input_value_set.add(synthesize_c_variable(tokens, generics_values))
+        input_value_set.add(get_input_variable(tokens, generics_values))
     return input_value_set
 
 class Statement:
@@ -513,6 +527,7 @@ class Part:
             # when compared to bit handling in synthesize_c_variable
             rhs_statement = synthesize_c_statement_tokens(self.function_tokens, self.generics_values)
             word, bit_select_msb, bit_select_lsb = parse_bit_range(self.output_value)
+            word = re.sub(r'F(\d+)\[', r'F[\1][', word)
             if bit_select_msb == bit_select_lsb:
                 # Single bit select
                 bit_select_mask         = "BIT("+str(bit_select_lsb)+")"
@@ -524,7 +539,7 @@ class Part:
             return word + " = (" + word + " & " + bit_select_inverse_mask + ") | " + \
                     "((" + rhs_statement + "<<" + str(bit_select_lsb)+ ") & " + bit_select_mask + ");"
         else:
-            return self.output_value + " = " + \
+            return re.sub(r'F(\d+)\[', r'F[\1][', self.output_value) + " = " + \
                     synthesize_c_statement_tokens(self.function_tokens, self.generics_values) + ";"
 
 class GenericPart:
@@ -801,25 +816,30 @@ class CipherSpec:
 
         plaintext_length = self.input_length()
         ciphertext_length = self.rounds[-1].length() # Length of last round
+        num_rounds = len(self.rounds)
 
         output += "void encrypt(uint64_t F0[" + str(plaintext_length) + \
                 "], uint64_t ciphertext[" + str(ciphertext_length) + "]) {\n"
-        output += "\tuint64_t " + \
-                ", ".join([round.name + "[" + str(round.length()) + "] = {0}"
-                           for round in self.rounds]) + ";\n\n"
+        output += "\tuint64_t roundlengths[] = {" + str(plaintext_length) + "," + \
+                ",".join([str(r.length()) for r in self.rounds]) + "};\n"
+        output += "\tuint64_t **F = (uint64_t**) malloc(sizeof(uint64_t*)*" + \
+                str(len(self.rounds)) + ");\n"
+        output += "\tF[0] = (uint64_t*) malloc(sizeof(uint64_t)*" + \
+                str(plaintext_length) + ");\n"
+        output += "\tfor (int i=1; i<" + str(num_rounds) + "+1; i++)\n"
+        output += "\t\tF[i] = (uint64_t*) malloc(sizeof(uint64_t)* roundlengths[i]);\n"
+        output += "\tfor (int i=0; i<" + str(plaintext_length) + "; i++)\n"
+        output += "\t\tF[0][i] = F0[i];\n\n"
         output += "\n".join([round.synthesize_c() for round in self.rounds]) + "\n"
 
-        output += "\tprintf(\"\\nF0\\t\");\n"
-        output += "\tfor (int i=0; i<" + str(plaintext_length) + "; i++)\n"
-        output += "\t\tprintf(\"%02lx \", F0[i]);\n"
-
-        for i, round in enumerate(self.rounds):
-            output += "\tprintf(\"\\nF" + str(i+1) + "\\t\");\n"
-            output += "\tfor (int i=0; i<" + str(round.length()) + "; i++)\n"
-            output += "\t\tprintf(\"%02lx \", F" + str(i+1) + "[i]);\n"
+        output += "\tfor (int i=0; i<" + str(num_rounds) + "+1; i++) {\n"
+        output += "\t\tprintf(\"\\nF%d\\t\",i);\n"
+        output += "\t\tfor (int j=0; j<roundlengths[i]; j++)\n"
+        output += "\t\t\tprintf(\"%02lx \", F[i][j]);\n"
+        output += "\t}\n"
 
         output += "\tfor (int i=0; i<" + str(ciphertext_length) + "; i++)\n"
-        output += "\t\tciphertext[i] = F" + str(len(self.rounds)) + "[i];\n"
+        output += "\t\tciphertext[i] = F[" + str(len(self.rounds)) + "][i];\n"
         output += "}\n\n"
 
         output += "int main() {\n"
