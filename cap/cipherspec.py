@@ -161,10 +161,6 @@ class Declaration:
 
 def evaluate_generic_expression(expression: str, variable: str, value: int, operators : list[str] = ["-", "+", "*"]):
     """Substitute the variable in the expression (for generic instantiation)"""
-    if expression[0] == "{":
-        assert expression[-1] == "}"
-        expression = expression[1:-1]
-
     # Base case
     if expression == variable:
         return str(value)
@@ -203,6 +199,9 @@ def instantiate_generics_on_string(string : str, generics_values : dict[str,int]
     generic_expressions = re.findall(r"{[^}]+}", string)
     for generic_expression in generic_expressions:
         evaluated_expression = generic_expression
+        if evaluated_expression[0] == "{":
+            assert evaluated_expression[-1] == "}"
+            evaluated_expression = evaluated_expression[1:-1]
         for variable in generics_values:
             value = generics_values[variable]
             evaluated_expression =  evaluate_generic_expression(evaluated_expression, variable, value)
@@ -233,6 +232,11 @@ def parse_bit_range(value) -> (str, int, int):
         bit_select_lsb  : int = bit_select_msb
     return word, bit_select_msb, bit_select_lsb
 
+def convert_word_to_array_format(word):
+    word = re.sub(r'F(\d+)\[', r'F[\1][', word)
+    word = re.sub(r'F{(.+)}\[', r'F[\1][', word)
+    return word
+
 def get_input_variable(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
     """Get input variable name"""
     value : str = "".join(tokens)
@@ -253,7 +257,7 @@ def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int
     value = instantiate_generics_on_string(value, generics_values)
     if value.find("_[") != -1:
         word, bit_select_msb, bit_select_lsb = parse_bit_range(value)
-        word = re.sub(r'F(\d+)\[', r'F[\1][', word)
+        word = convert_word_to_array_format(word)
         if bit_select_msb == bit_select_lsb:
             # Single bit select
             return "BIT_SELECT(" + word + "," + str(bit_select_lsb) + ")"
@@ -262,7 +266,7 @@ def synthesize_c_variable(tokens : ParserElement, generics_values : dict[str,int
             return "BITRANGE_SELECT(" + word + "," + str(bit_select_msb) + \
                     "," + str(bit_select_lsb) + ")"
     else:
-        return re.sub(r'F(\d+)\[', r'F[\1][', value)
+        return convert_word_to_array_format(value)
 
 binary_function_to_symbol_map = {
         "F_ADD": "+",   "F_SUB": "-",
@@ -342,7 +346,7 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
                 exit()
             value = instantiate_generics_on_string(value, generics_values)
             word, bit_select_msb, bit_select_lsb = parse_bit_range(value)
-            word = re.sub(r'F(\d+)\[', r'F[\1][', word)
+            word = convert_word_to_array_format(word)
             bit_length = bit_select_msb - bit_select_lsb + 1
             if rotate_bits > bit_length:
                 print(f"Error: In {function_name}, {value} has rotate bits {rotate_bits} greater than bitslice length {bit_length}")
@@ -527,7 +531,7 @@ class Part:
             # when compared to bit handling in synthesize_c_variable
             rhs_statement = synthesize_c_statement_tokens(self.function_tokens, self.generics_values)
             word, bit_select_msb, bit_select_lsb = parse_bit_range(self.output_value)
-            word = re.sub(r'F(\d+)\[', r'F[\1][', word)
+            word = convert_word_to_array_format(word)
             if bit_select_msb == bit_select_lsb:
                 # Single bit select
                 bit_select_mask         = "BIT("+str(bit_select_lsb)+")"
@@ -539,7 +543,7 @@ class Part:
             return word + " = (" + word + " & " + bit_select_inverse_mask + ") | " + \
                     "((" + rhs_statement + "<<" + str(bit_select_lsb)+ ") & " + bit_select_mask + ");"
         else:
-            return re.sub(r'F(\d+)\[', r'F[\1][', self.output_value) + " = " + \
+            return convert_word_to_array_format(self.output_value) + " = " + \
                     synthesize_c_statement_tokens(self.function_tokens, self.generics_values) + ";"
 
 class GenericPart:
@@ -547,30 +551,32 @@ class GenericPart:
 
     Attributes:
         tokens (ParserElement) : Parser tokens corresponding to this generic part
+        iter_variable (str)    : Iterator variable
+        iter_start, iter_end, iter_end (int) : Iterator start, end and step values
+        part                   : The part over which this is generic
     """
 
     def __init__(self, tokens: ParserElement) -> None:
         self.tokens = tokens
-
-    def generate_parts(self) -> list[Part]:
         assert self.tokens[0] == "<"
         assert self.tokens[1] == "for"
-        iter_variable = str(self.tokens[2])
+        self.iter_variable = str(self.tokens[2])
         assert self.tokens[3] == "in"
         assert self.tokens[4] == "["
-        iter_start = int(self.tokens[5])
+        self.iter_start = int(self.tokens[5])
         assert self.tokens[6] == ":"
-        iter_end = int(self.tokens[7])
-        iter_step = 1
+        self.iter_end = int(self.tokens[7])
+        self.iter_step = 1
         if self.tokens[8] == ":":
-            iter_step = int(self.tokens[9])
-        part = self.tokens[-1]
+            self.iter_step = int(self.tokens[9])
+        self.part = self.tokens[-1]
 
+    def generate_parts(self) -> list[Part]:
         # Generating parts
         new_parts = []
-        for iter_value in range(iter_start,iter_end+1,iter_step):
-            new_part = Part(part.tokens)
-            new_part.instantiate_generics(iter_variable, iter_value)
+        for iter_value in range(self.iter_start,self.iter_end+1,self.iter_step):
+            new_part = Part(self.part.tokens)
+            new_part.instantiate_generics(self.iter_variable, iter_value)
             new_parts.append(new_part)
         return new_parts
 
@@ -583,6 +589,8 @@ class Round:
         linearity (str)  : Linearity of the round
         type (str)  : Type of the round
         parts (list[Part])  : The individual operations performed in this round
+        loop_generic_round (GenericRound) : If need to synthesize using loops
+        is_loop_first_round (bool) : If need to synthesize using loops
     """
 
     def __init__(self, tokens: ParserElement) -> None:
@@ -591,6 +599,8 @@ class Round:
         self.linearity  : str           = tokens[4]
         self.type       : str           = tokens[7]
         self.parts      : list[Part]    = []
+        self.loop_generic_round : GenericRound = None
+        self.is_loop_first_round : bool = False
         for i in range(10, len(tokens) - 1):
             if isinstance(tokens[i], GenericPart):
                 # Expand any generic parts
@@ -629,6 +639,11 @@ class Round:
         return max_index + 1
 
     def synthesize_c(self) -> str:
+        if self.loop_generic_round:
+            if self.is_loop_first_round:
+                return self.loop_generic_round.synthesize_c()
+            else:
+                return ""
         output = "\t// Round " + self.name + "\n\t"
         output += "\n\t".join([part.synthesize_c() for part in self.parts]) + "\n"
         return output
@@ -638,32 +653,57 @@ class GenericRound:
 
     Attributes:
         tokens (ParserElement) : Parser tokens corresponding to this generic round
+        iter_variable (str)    : Iterator variable
+        iter_start, iter_end, iter_end (int) : Iterator start, end and step values
+        round                  : The round over which this is generic
     """
 
     def __init__(self, tokens: ParserElement) -> None:
         self.tokens = tokens
-
-    def generate_rounds(self) -> list[Round]:
         assert self.tokens[0] == "<"
         assert self.tokens[1] == "for"
-        iter_variable = str(self.tokens[2])
+        self.iter_variable = str(self.tokens[2])
         assert self.tokens[3] == "in"
         assert self.tokens[4] == "["
-        iter_start = int(self.tokens[5])
+        self.iter_start = int(self.tokens[5])
         assert self.tokens[6] == ":"
-        iter_end = int(self.tokens[7])
-        iter_step = 1
+        self.iter_end = int(self.tokens[7])
+        self.iter_step = 1
         if self.tokens[8] == ":":
-            iter_step = int(self.tokens[9])
-        round = self.tokens[-1]
+            self.iter_step = int(self.tokens[9])
+        self.round = self.tokens[-1]
 
+    def is_loop_generic_round(self):
+        if self.iter_step == 1:
+            round_name = self.round.name
+            brackets = round_name.split(self.iter_variable)
+            if len(brackets) == 2 and \
+                    brackets[0].strip() == "F{" and \
+                    brackets[1].strip() == "}":
+                        return True
+        return False
+
+    def generate_rounds(self) -> list[Round]:
         # Generating rounds
         new_rounds = []
-        for iter_value in range(iter_start,iter_end+1,iter_step):
-            new_round = Round(round.tokens)
-            new_round.instantiate_generics(iter_variable, iter_value)
+        for iter_value in range(self.iter_start,self.iter_end+1,self.iter_step):
+            new_round = Round(self.round.tokens)
+            if self.is_loop_generic_round():
+                new_round.loop_generic_round = self
+                new_round.is_loop_first_round = (iter_value == self.iter_start)
+            new_round.instantiate_generics(self.iter_variable, iter_value)
             new_rounds.append(new_round)
         return new_rounds
+
+    def synthesize_c(self) -> str:
+        """Used only for loop rounds"""
+        assert self.is_loop_generic_round()
+        output = "\t// Rounds " + str(self.iter_start) + " to " + str(self.iter_end) + "\n\t"
+        output += "for (uint64_t " + self.iter_variable + " = " + str(self.iter_start) + " ;" +  \
+                self.iter_variable + " <= " + str(self.iter_end) + "; " + self.iter_variable + "++) {\n\t\t"
+        output += "\n\t\t".join([part.synthesize_c() for part in self.round.parts]) + "\n"
+        output += "\t}\n\t"
+        return output
 
 class CipherSpec:
     """Represents a Specification of a Block Cipher.
@@ -830,7 +870,8 @@ class CipherSpec:
         output += "\t\tF[i] = (uint64_t*) malloc(sizeof(uint64_t)* roundlengths[i]);\n"
         output += "\tfor (int i=0; i<" + str(plaintext_length) + "; i++)\n"
         output += "\t\tF[0][i] = F0[i];\n\n"
-        output += "\n".join([round.synthesize_c() for round in self.rounds]) + "\n"
+        output += "\n".join(list(filter(lambda x : x != "",
+                                        [round.synthesize_c() for round in self.rounds]))) + "\n"
 
         output += "\tfor (int i=0; i<" + str(num_rounds) + "+1; i++) {\n"
         output += "\t\tprintf(\"\\nF%d\\t\",i);\n"
