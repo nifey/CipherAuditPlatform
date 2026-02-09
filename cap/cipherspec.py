@@ -235,6 +235,7 @@ def parse_bit_range(value) -> (str, int, int):
 def convert_word_to_array_format(word):
     word = re.sub(r'F(\d+)\[', r'F[\1][', word)
     word = re.sub(r'F{(.+)}\[', r'F[\1][', word)
+    word = re.sub(r'\[{(.+)}\]', r'[\1]', word)
     return word
 
 def get_input_variable(tokens : ParserElement, generics_values : dict[str,int] = {}) -> str:
@@ -494,6 +495,8 @@ class Part:
         output_value (str) : The value to which this Part is assigning
         function_tokens (list[ParserElement]) : (Optional) Parser tokens corresponding to the function
         generics_values (dict[str,int]) : Map from generic variable to instantiating value
+        loop_generic_part (GenericPart) : If need to synthesize using loops
+        is_loop_first_part (bool) : If need to synthesize using loops
     """
 
     def __init__(self, tokens: ParserElement) -> None:
@@ -503,6 +506,8 @@ class Part:
         self.output_value   : str       = "".join([str(x) for x in tokens[1]])
         self.function_tokens            = tokens[3:len(tokens)-1]
         self.generics_values : dict[str,int]    = {}
+        self.loop_generic_part : GenericPart = None
+        self.is_loop_first_part : bool = False
 
     def __str__(self) -> str:
         return self.synthesize_c()
@@ -526,6 +531,11 @@ class Part:
         return get_all_function_calls(self.function_tokens)
 
     def synthesize_c(self) -> str:
+        if self.loop_generic_part:
+            if self.is_loop_first_part:
+                return self.loop_generic_part.synthesize_c()
+            else:
+                return ""
         if self.output_value.find("_[") != -1:
             # We have to handle bit select on the output value differently 
             # when compared to bit handling in synthesize_c_variable
@@ -571,14 +581,30 @@ class GenericPart:
             self.iter_step = int(self.tokens[9])
         self.part = self.tokens[-1]
 
+    def is_loop_generic_part(self):
+        if self.iter_step == 1:
+            return True
+        return False
+
     def generate_parts(self) -> list[Part]:
         # Generating parts
         new_parts = []
         for iter_value in range(self.iter_start,self.iter_end+1,self.iter_step):
             new_part = Part(self.part.tokens)
+            if self.is_loop_generic_part():
+                new_part.loop_generic_part = self
+                new_part.is_loop_first_part = (iter_value == self.iter_start)
             new_part.instantiate_generics(self.iter_variable, iter_value)
             new_parts.append(new_part)
         return new_parts
+
+    def synthesize_c(self) -> str:
+        """Used only for loop parts"""
+        assert self.is_loop_generic_part()
+        output = "\tfor (uint64_t " + self.iter_variable + " = " + str(self.iter_start) + " ;" +  \
+                self.iter_variable + " <= " + str(self.iter_end) + "; " + self.iter_variable + "++) {\n\t\t\t"
+        output += self.part.synthesize_c() + "\n\t\t}\n\t"
+        return output
 
 class Round:
     """Represents a Round in the cipher.
@@ -645,7 +671,8 @@ class Round:
             else:
                 return ""
         output = "\t// Round " + self.name + "\n\t"
-        output += "\n\t".join([part.synthesize_c() for part in self.parts]) + "\n"
+        output += "\n\t".join(list(filter(lambda x : x != "",
+                                        [part.synthesize_c() for part in self.parts]))) + "\n"
         return output
 
 class GenericRound:
@@ -701,7 +728,8 @@ class GenericRound:
         output = "\t// Rounds " + str(self.iter_start) + " to " + str(self.iter_end) + "\n\t"
         output += "for (uint64_t " + self.iter_variable + " = " + str(self.iter_start) + " ;" +  \
                 self.iter_variable + " <= " + str(self.iter_end) + "; " + self.iter_variable + "++) {\n\t\t"
-        output += "\n\t\t".join([part.synthesize_c() for part in self.round.parts]) + "\n"
+        output += "\n\t".join(list(filter(lambda x : x != "",
+                                        [part.synthesize_c() for part in self.round.parts]))) + "\n"
         output += "\t}\n\t"
         return output
 
