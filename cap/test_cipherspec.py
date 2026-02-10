@@ -219,7 +219,19 @@ cipher_testcases = [
                     ("F3",      "29 02 46 e1 77 7d e8 e8"),
                     ("F4",      "54 7a 31 93 ab f1 20 70"),
                     ("F6",      "af 91 ea 58 08 09 0a 0b 1c 56 b7 f7 00 01 02 03"),
-                    ("F91",     "de 2b f2 fd 9b 74 aa cd f1 29 85 55 45 94 94 fd")]}
+                    ("F91",     "de 2b f2 fd 9b 74 aa cd f1 29 85 55 45 94 94 fd")]},
+        {"file" : "specifications/PRESENT_80.csl",  "declarations" : 3,     "operations" : 0,   "rounds" : 94,
+         "tests" : [("F1",      "00 01 02 03 04 05 06 07"),
+                    ("F2",      "cc c5 c6 cb c9 c0 ca cd"),
+                    ("F3",      "eb ef fe ab 05 04 11 41"),
+                    ("F94",     "95 bc 3e b3 1a b5 51 0d")]},
+        {"file" : "specifications/SPECK_128.csl",  "declarations" : 2,     "operations" : 0,   "rounds" : 160,
+         "tests" : [("F1",      "00 01"),
+                    ("F2",      "01 01"),
+                    ("F3",      "706050403020101 01"),
+                    ("F4",      "706050403020101 08"),
+                    ("F5",      "706050403020101 706050403020109"),
+                    ("F160",    "f1182e3caaedf81d c12c80875bbe3fe")]},
         ]
 
 def test_cipher_parser():
