@@ -1,0 +1,148 @@
+<begin>
+	<declaration>
+        Key[2] { 0001020304050607 08090A0B0C0D0E0F }
+        IV[1] { 80400c0600000000 }
+		Nonce[2] { 0001020304050607 08090A0B0C0D0E0F }
+		RC[12] { 000000000000000000f0 000000000000000000e1 000000000000000000d2 000000000000000000c3 000000000000000000b4 000000000000000000a5 00000000000000000096 00000000000000000087 00000000000000000078 00000000000000000069 0000000000000000005a 0000000000000000004b }
+		PT[1] { 0001020304050680  }
+		AD[1] { 0001020304050680  }
+    </declaration>
+    <F1><linear><SWAP><
+    	< F1[0] : IV[0] >
+    	< F1[1] : Key[0] >
+    	< F1[2] : Key[1] >
+    	< F1[3] : Nonce[0] >
+    	< F1[4] : Nonce[1] >
+    />
+    < for j in [0:11:1] >
+     <F{3*j+2}> <linear> <KEYXOR> <
+     	< for i in [0:1] >
+    		< F{3*j+2}[{i}] : F{3*j+1}[{i}] >
+    	< F{3*j+2}[2]  : F_XOR( F{3*j+1}[2] , F_LKUP({j},RC) ) >
+    	< for i in [3:4] >
+    		< F{3*j+2}[{i}] : F{3*j+1}[{i}] >
+    />
+    < for j in [3:36:3] >
+    <F{j}> <nonlinear> <SUBBYTE> <
+			< F{j}[4] : F_XOR(F_AND(F{j-1}[4],F{j-1}[1]),F_XOR(F{j-1}[4],F_XOR(F{j-1}[3],F_XOR(F_AND(F{j-1}[1],F{j-1}[0]),F{j-1}[1])))) >
+
+< F{j}[3] : F_XOR(F_AND(F{j-1}[4],F{j-1}[0]),F_XOR(F{j-1}[4],F_XOR(F_AND(F{j-1}[3],F{j-1}[0]),F_XOR(F{j-1}[3],F_XOR(F{j-1}[2],F_XOR(F{j-1}[1],F{j-1}[0])))))) >
+
+< F{j}[2] : F_XOR('0xffffffffffffffff',F_XOR(F_AND(F{j-1}[4],F{j-1}[3]),F_XOR(F{j-1}[4],F_XOR(F{j-1}[2],F{j-1}[1])))) >
+
+< F{j}[1] : F_XOR(F{j-1}[4],F_XOR(F_AND(F{j-1}[3],F{j-1}[2]),F_XOR(F_AND(F{j-1}[3],F{j-1}[1]),F_XOR(F{j-1}[3],F_XOR(F_AND(F{j-1}[2],F{j-1}[1]),F_XOR(F{j-1}[2],F_XOR(F{j-1}[1],F{j-1}[0]))))))) >
+
+< F{j}[0] : F_XOR(F_AND(F{j-1}[4],F{j-1}[1]),F_XOR(F{j-1}[3],F_XOR(F_AND(F{j-1}[2],F{j-1}[1]),F_XOR(F{j-1}[2],F_XOR(F_AND(F{j-1}[1],F{j-1}[0]),F_XOR(F{j-1}[1],F{j-1}[0])))))) >
+
+		/>
+
+	< for j in [4:37:3] >
+    <F{j}> <linear> <KEYXOR> <
+		< F{j}[0] : F_XOR(F{j-1}[0],F_XOR(F_ROR(F{j-1}[0]_[0:63],19),F_ROR(F{j-1}[0]_[0:63],28)))>
+		< F{j}[1] : F_XOR(F{j-1}[1],F_XOR(F_ROR(F{j-1}[1]_[0:63],61),F_ROR(F{j-1}[1]_[0:63],39)))>
+		< F{j}[2] : F_XOR(F{j-1}[2],F_XOR(F_ROR(F{j-1}[2]_[0:63],1),F_ROR(F{j-1}[2]_[0:63],6)))>
+		< F{j}[3] : F_XOR(F{j-1}[3],F_XOR(F_ROR(F{j-1}[3]_[0:63],10),F_ROR(F{j-1}[3]_[0:63],17)))>
+		< F{j}[4] : F_XOR(F{j-1}[4],F_XOR(F_ROR(F{j-1}[4]_[0:63],7),F_ROR(F{j-1}[4]_[0:63],41)))>
+	/>	
+	<F38> <linear> <KEYXOR> <
+		<for i in [0:2]>
+			< F38[{i}] : F37[{i}] >
+		<for i in [3:4]>
+			< F38[{i}] : F_XOR(F37[{i}],F_LKUP({i-3},Key))>
+	/>
+	<F39> <linear> <KEYXOR> <
+		< F39[0] : F_XOR(F38[0],F_LKUP(0,AD))>
+		<for i in [1:4]>
+			< F39[{i}] : F38[{i}] >
+	/>
+	    < for j in [0:5:1] >
+     <F{40+3*j}> <linear> <KEYXOR> <
+     	< for i in [0:1] >
+    		< F{40+3*j}[{i}] : F{39+3*j}[{i}] >
+    	< F{40+3*j}[2]  : F_XOR( F{39+3*j}[2] , F_LKUP({j+6},RC) ) >
+    	< for i in [3:4] >
+    		< F{40+3*j}[{i}] : F{39+3*j}[{i}] >
+		
+    />
+    < for j in [41:56:3] >
+     <F{j}> <nonlinear> <SUBBYTE> <
+			< F{j}[4] : F_XOR(F_AND(F{j-1}[4],F{j-1}[1]),F_XOR(F{j-1}[4],F_XOR(F{j-1}[3],F_XOR(F_AND(F{j-1}[1],F{j-1}[0]),F{j-1}[1])))) >
+
+< F{j}[3] : F_XOR(F_AND(F{j-1}[4],F{j-1}[0]),F_XOR(F{j-1}[4],F_XOR(F_AND(F{j-1}[3],F{j-1}[0]),F_XOR(F{j-1}[3],F_XOR(F{j-1}[2],F_XOR(F{j-1}[1],F{j-1}[0])))))) >
+
+< F{j}[2] : F_XOR('0xffffffffffffffff',F_XOR(F_AND(F{j-1}[4],F{j-1}[3]),F_XOR(F{j-1}[4],F_XOR(F{j-1}[2],F{j-1}[1])))) >
+
+< F{j}[1] : F_XOR(F{j-1}[4],F_XOR(F_AND(F{j-1}[3],F{j-1}[2]),F_XOR(F_AND(F{j-1}[3],F{j-1}[1]),F_XOR(F{j-1}[3],F_XOR(F_AND(F{j-1}[2],F{j-1}[1]),F_XOR(F{j-1}[2],F_XOR(F{j-1}[1],F{j-1}[0]))))))) >
+
+< F{j}[0] : F_XOR(F_AND(F{j-1}[4],F{j-1}[1]),F_XOR(F{j-1}[3],F_XOR(F_AND(F{j-1}[2],F{j-1}[1]),F_XOR(F{j-1}[2],F_XOR(F_AND(F{j-1}[1],F{j-1}[0]),F_XOR(F{j-1}[1],F{j-1}[0])))))) >
+
+
+		/>
+	
+	< for j in [42:57:3] >
+    <F{j}> <linear> <KEYXOR> <
+		< F{j}[0] : F_XOR(F{j-1}[0],F_XOR(F_ROR(F{j-1}[0]_[0:63],19),F_ROR(F{j-1}[0]_[0:63],28)))>
+		< F{j}[1] : F_XOR(F{j-1}[1],F_XOR(F_ROR(F{j-1}[1]_[0:63],61),F_ROR(F{j-1}[1]_[0:63],39)))>
+		< F{j}[2] : F_XOR(F{j-1}[2],F_XOR(F_ROR(F{j-1}[2]_[0:63],1),F_ROR(F{j-1}[2]_[0:63],6)))>
+		< F{j}[3] : F_XOR(F{j-1}[3],F_XOR(F_ROR(F{j-1}[3]_[0:63],10),F_ROR(F{j-1}[3]_[0:63],17)))>
+		< F{j}[4] : F_XOR(F{j-1}[4],F_XOR(F_ROR(F{j-1}[4]_[0:63],7),F_ROR(F{j-1}[4]_[0:63],41)))>
+	/>
+	<F58> <linear> <KEYXOR> <
+		<for i in [0:3]>
+			< F58[{i}] : F57[{i}] >
+		< F58[4] : F_XOR(F57[4],'0x00000000000000000001') > 
+	/>
+	<F59> <linear> <KEYXOR> <
+		< F59[0] : F_XOR(F58[0],F_LKUP(0,PT))>
+		<for i in [1:4]>
+			< F59[{i}] : F58[{i}] >
+	/>
+	<F60> <linear> <KEYXOR> <
+		< F60[0] : F59[0] >
+		<for i in [1:2]>
+			< F60[{i}] : F_XOR(F59[{i}],F_LKUP({i-1},Key)) >
+		<for i in [3:4]>
+			< F60[{i}] : F59[{i}] >
+	/>
+	< for j in [0:11:1] >
+     <F{61+3*j}> <linear> <KEYXOR> <
+     	< for i in [0:1] >
+    		< F{61+3*j}[{i}] : F{60+3*j}[{i}] >
+    	< F{61+3*j}[2]  : F_XOR( F{60+3*j}[2] , F_LKUP({j},RC) ) >
+    	< for i in [3:4] >
+    		< F{61+3*j}[{i}] : F{60+3*j}[{i}] >
+		
+    />
+    < for j in [62:95:3] >
+     <F{j}> <nonlinear> <SUBBYTE> <
+			< F{j}[4] : F_XOR(F_AND(F{j-1}[4],F{j-1}[1]),F_XOR(F{j-1}[4],F_XOR(F{j-1}[3],F_XOR(F_AND(F{j-1}[1],F{j-1}[0]),F{j-1}[1])))) >
+
+< F{j}[3] : F_XOR(F_AND(F{j-1}[4],F{j-1}[0]),F_XOR(F{j-1}[4],F_XOR(F_AND(F{j-1}[3],F{j-1}[0]),F_XOR(F{j-1}[3],F_XOR(F{j-1}[2],F_XOR(F{j-1}[1],F{j-1}[0])))))) >
+
+< F{j}[2] : F_XOR('0xffffffffffffffff',F_XOR(F_AND(F{j-1}[4],F{j-1}[3]),F_XOR(F{j-1}[4],F_XOR(F{j-1}[2],F{j-1}[1])))) >
+
+< F{j}[1] : F_XOR(F{j-1}[4],F_XOR(F_AND(F{j-1}[3],F{j-1}[2]),F_XOR(F_AND(F{j-1}[3],F{j-1}[1]),F_XOR(F{j-1}[3],F_XOR(F_AND(F{j-1}[2],F{j-1}[1]),F_XOR(F{j-1}[2],F_XOR(F{j-1}[1],F{j-1}[0]))))))) >
+
+< F{j}[0] : F_XOR(F_AND(F{j-1}[4],F{j-1}[1]),F_XOR(F{j-1}[3],F_XOR(F_AND(F{j-1}[2],F{j-1}[1]),F_XOR(F{j-1}[2],F_XOR(F_AND(F{j-1}[1],F{j-1}[0]),F_XOR(F{j-1}[1],F{j-1}[0])))))) >
+
+		/>
+	
+	< for j in [63:96:3] >
+    <F{j}> <linear> <KEYXOR> <
+		< F{j}[0] : F_XOR(F{j-1}[0],F_XOR(F_ROR(F{j-1}[0]_[0:63],19),F_ROR(F{j-1}[0]_[0:63],28)))>
+		< F{j}[1] : F_XOR(F{j-1}[1],F_XOR(F_ROR(F{j-1}[1]_[0:63],61),F_ROR(F{j-1}[1]_[0:63],39)))>
+		< F{j}[2] : F_XOR(F{j-1}[2],F_XOR(F_ROR(F{j-1}[2]_[0:63],1),F_ROR(F{j-1}[2]_[0:63],6)))>
+		< F{j}[3] : F_XOR(F{j-1}[3],F_XOR(F_ROR(F{j-1}[3]_[0:63],10),F_ROR(F{j-1}[3]_[0:63],17)))>
+		< F{j}[4] : F_XOR(F{j-1}[4],F_XOR(F_ROR(F{j-1}[4]_[0:63],7),F_ROR(F{j-1}[4]_[0:63],41)))>
+	/>	
+	
+	<F97> <linear> <KEYXOR> <
+		<for i in [0:2]>
+			< F97[{i}] : F96[{i}] >
+		<for i in [3:4]>
+			< F97[{i}] : F_XOR(F96[{i}],F_LKUP({i-3},Key)) >
+	/>
+	
+<end>    	
+
+			
