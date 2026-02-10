@@ -232,6 +232,16 @@ cipher_testcases = [
                     ("F4",      "706050403020101 08"),
                     ("F5",      "706050403020101 706050403020109"),
                     ("F160",    "f1182e3caaedf81d c12c80875bbe3fe")]},
+        {"file" : "specifications/CHACHA20.csl",  "declarations" : 4,     "operations" : 0,   "rounds" : 242,
+         "tests" : [("F1",      "61707865 3320646e 79622d32 6b206574 3020100 7060504 b0a0908 f0e0d0c 13121110 17161514 1b1a1918 1f1e1d1c 01 9000000 4a000000 00"),
+                    ("F2",      "64727965 3a266972 846c363a 7a2e7280 3020100 7060504 b0a0908 f0e0d0c 13121110 17161514 1b1a1918 1f1e1d1c 01 9000000 4a000000 00"),
+                    ("F3",      "64727965 3a266972 846c363a 7a2e7280 3020100 7060504 b0a0908 f0e0d0c 13121110 17161514 1b1a1918 1f1e1d1c 64727964 33266972 ce6c363a 7a2e7280"),
+                    ("F24",     "cd52e917 85ab03b4 b3457395 f96de7dd 45896f9a f4b85c30 c392bd68 3462d900 7bf7d740 7eddd644 f1a1bdf5 761246ca 6b0d58a3 6798471a d737f167 f173888d"),
+                    ("F242",    "e4e7f110 15593bd1 1fdd0f50 c47120a3 c7f4d1c7 368c033 9aaa2204 4e6cd4c3 466482d2 9aa9f07 5d7c214 a2028bd9 d19c12b5 b94e16de e883d0cb 4e3c50a2")]},
+        {"file" : "specifications/ASCON128.csl",  "declarations" : 6,     "operations" : 0,   "rounds" : 97,
+         "tests" : [("F1",      "80400c0600000000 1020304050607 8090a0b0c0d0e0f 1020304050607 8090a0b0c0d0e0f "),
+                    ("F3",      "8849060f0c0d0eff 80410e05040506f7 ffffffffffffff0f 80400406000000f0 808080a08080808 "),
+                    ("F97",     "aa10856137c5a410 c4484049c5056bc1 2bfaa1972589c50d 69715fb4556decd1 d4d4834ea4923c12 ")]},
         ]
 
 def test_cipher_parser():
