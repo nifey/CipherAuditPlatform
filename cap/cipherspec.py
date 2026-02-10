@@ -333,8 +333,9 @@ def synthesize_c_statement_tokens(tokens : ParserElement, generics_values : dict
                 + binary_function_to_symbol_map[function_name]                              \
                 + synthesize_c_statement_tokens(argument_tokens[1], generics_values, variable_set) + ")"
         elif function_name == "F_LKUP":
-            return synthesize_c_statement_tokens(argument_tokens[1], generics_values, variable_set)  \
+            expression = synthesize_c_statement_tokens(argument_tokens[1], generics_values, variable_set)  \
                 + "[" + synthesize_c_variable(argument_tokens[0], generics_values) + "]"
+            return convert_word_to_array_format(expression)
         elif function_name == "F_ROR" or function_name == "F_ROL":
             for token in argument_tokens[0]:
                 if not isinstance(token, str):
@@ -533,7 +534,7 @@ class Part:
     def synthesize_c(self) -> str:
         if self.loop_generic_part:
             if self.is_loop_first_part:
-                return self.loop_generic_part.synthesize_c()
+                return self.loop_generic_part.synthesize_c(self.generics_values)
             else:
                 return ""
         if self.output_value.find("_[") != -1:
@@ -598,12 +599,17 @@ class GenericPart:
             new_parts.append(new_part)
         return new_parts
 
-    def synthesize_c(self) -> str:
+    def synthesize_c(self, round_generics_values) -> str:
         """Used only for loop parts"""
         assert self.is_loop_generic_part()
         output = "\tfor (uint64_t " + self.iter_variable + " = " + str(self.iter_start) + " ;" +  \
                 self.iter_variable + " <= " + str(self.iter_end) + "; " + self.iter_variable + "++) {\n\t\t\t"
-        output += self.part.synthesize_c() + "\n\t\t}\n\t"
+        new_part = Part(self.part.tokens)
+        for generic_variable in round_generics_values:
+            if generic_variable != self.iter_variable:
+                new_part.instantiate_generics(generic_variable, 
+                                              round_generics_values[generic_variable])
+        output += new_part.synthesize_c() + "\n\t\t}\n\t"
         return output
 
 class Round:
