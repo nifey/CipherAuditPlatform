@@ -242,6 +242,8 @@ cipher_testcases = [
          "tests" : [("F1",      "80400c0600000000 1020304050607 8090a0b0c0d0e0f 1020304050607 8090a0b0c0d0e0f "),
                     ("F3",      "8849060f0c0d0eff 80410e05040506f7 ffffffffffffff0f 80400406000000f0 808080a08080808 "),
                     ("F97",     "aa10856137c5a410 c4484049c5056bc1 2bfaa1972589c50d 69715fb4556decd1 d4d4834ea4923c12 ")]},
+        {"file" : "specifications/Trivium.csl",  "declarations" : 4,     "operations" : 0,   "rounds" : 1282,
+         "tests" : [("F1282",   "fb e0 bf 26 58 59 05 1b 51 7a 2e 4e 23 9f c9 7f ")]},
         ]
 
 def test_cipher_parser():
