@@ -1,0 +1,6 @@
+.vscode/
+build*
+logs/
+# File used to debug
+**stderr.txt
+**.dot
