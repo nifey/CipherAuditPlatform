@@ -14,16 +14,16 @@ https://zenodo.org/records/14277842
 - Ubuntu 22.04 or 24.04 (Noble)
 - `sudo` access
 - The GNUZero repository cloned to your machine, including:
-  - `gcc_fork/` — patched GCC 13 source
+  - `gcc_fork/` — patched GCC 13 source -- not included in this repo (due to large size), please refer to author shared repo
   - `gnuzero/` — the GCC plugin source
   - `juliet-testsuite-adapted/` — adapted Juliet C test cases
 
 This guide assumes your working root is:
 ```
-/home/<you>/Desktop/GNUZero/gnuzero_artifacts/
+<your_customer_path>/GNUZero/gnuzero_artifacts/
 ```
 
-Replace `<you>` with your actual username throughout.
+Replace `<username>` with your actual username throughout.
 
 ---
 
@@ -51,12 +51,12 @@ sudo apt install build-essential flex bison \
 This builds a patched GCC 13.0.1 from source and installs it to `~/.local`. This step takes **1–2 hours**.
 
 ```bash
-cd /home/<you>/Desktop/GNUZero/gnuzero_artifacts/gcc_fork
+cd <your_customer_path>/GNUZero/gnuzero_artifacts/gcc_fork
 
 mkdir build && cd build
 
 ../configure \
-  --prefix=/home/<you>/.local \
+  --prefix=/home/<username>/.local \
   --enable-languages=c,c++ \
   --disable-multilib \
   --enable-checking=yes,types,extra
@@ -68,7 +68,7 @@ make install
 Verify the install:
 
 ```bash
-/home/<you>/.local/bin/gcc --version
+/home/<username>/.local/bin/gcc --version
 ```
 
 Expected output:
@@ -81,13 +81,13 @@ gcc (GCC) 13.0.1_custom 20230321 (experimental)
 ## Step 3 — Build the GNUZero Plugin
 
 ```bash
-cd /home/<you>/Desktop/GNUZero/gnuzero_artifacts/gnuzero
+cd <your_customer_path>/GNUZero/gnuzero_artifacts/gnuzero
 
 mkdir build && cd build
 
 cmake -B . -S .. \
-  -DCMAKE_C_COMPILER=/home/<you>/.local/bin/gcc \
-  -DCMAKE_CXX_COMPILER=/home/<you>/.local/bin/g++ \
+  -DCMAKE_C_COMPILER=/home/<username>/.local/bin/gcc \
+  -DCMAKE_CXX_COMPILER=/home/<username>/.local/bin/g++ \
   -DGCC_VERSION=13.0.1_custom
 
 make VERBOSE=1
@@ -105,14 +105,14 @@ gnuzero/build/libscrub.so
 The Juliet test case support directory contains a symlink to `scrub.h`. Make sure it points to the correct file:
 
 ```bash
-ln -sf /home/<you>/Desktop/GNUZero/gnuzero_artifacts/gnuzero/scrub.h \
-  /home/<you>/Desktop/GNUZero/gnuzero_artifacts/juliet-testsuite-adapted/testcasesupport/scrub.h
+ln -sf <your_customer_path>/GNUZero/gnuzero_artifacts/gnuzero/scrub.h \
+  <your_customer_path>/GNUZero/gnuzero_artifacts/juliet-testsuite-adapted/testcasesupport/scrub.h
 ```
 
 Verify:
 
 ```bash
-ls -la /home/<you>/Desktop/GNUZero/gnuzero_artifacts/juliet-testsuite-adapted/testcasesupport/scrub.h
+ls -la <your_customer_path>/GNUZero/gnuzero_artifacts/juliet-testsuite-adapted/testcasesupport/scrub.h
 ```
 
 ---
@@ -120,10 +120,10 @@ ls -la /home/<you>/Desktop/GNUZero/gnuzero_artifacts/juliet-testsuite-adapted/te
 ## Step 5 — Run the Analysis
 
 ```bash
-cd /home/<you>/Desktop/GNUZero/gnuzero_artifacts/juliet-testsuite-adapted
+cd <your_customer_path>/GNUZero/gnuzero_artifacts/juliet-testsuite-adapted
 
 python3 run_scrub_analysis.py run \
-  -p /home/<you>/Desktop/GNUZero/gnuzero_artifacts/gnuzero/build/libscrub.so \
+  -p <your_customer_path>/GNUZero/gnuzero_artifacts/gnuzero/build/libscrub.so \
   -id 226
 ```
 
@@ -143,7 +143,7 @@ python3 run_scrub_analysis.py run \
 
 ```bash
 python3 run_scrub_analysis.py run \
-  -p /home/<you>/Desktop/GNUZero/gnuzero_artifacts/gnuzero/build/libscrub.so \
+  -p <your_customer_path>/GNUZero/gnuzero_artifacts/gnuzero/build/libscrub.so \
   -id 244 \
   --sarif
 ```
@@ -181,7 +181,7 @@ The symlink in `testcasesupport/` is broken. Redo Step 4.
 **`Plugin path issue`**
 The path passed to `-p` does not exist. Verify `libscrub.so` was built in Step 3:
 ```bash
-ls /home/<you>/Desktop/GNUZero/gnuzero_artifacts/gnuzero/build/libscrub.so
+ls <your_customer_path>/GNUZero/gnuzero_artifacts/gnuzero/build/libscrub.so
 ```
 
 **GCC build fails with missing library**
