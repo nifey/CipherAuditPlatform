@@ -1,5 +1,5 @@
 import click
-from cap import CipherSpec, cipher_parser
+from cap import CipherSpec, cipher_parser, fault_simulation
 from pyparsing import ParseException
 
 inbuilt_csls_files = {
@@ -73,6 +73,8 @@ def cli():
     pass
 cli.add_command(synthesize_csl)
 cli.add_command(list_csl)
+cli.add_command(fault_simulation.simulate_faults)
+cli.add_command(fault_simulation.show_fault_stats)
 
 if __name__ == "__main__":
     cli()
