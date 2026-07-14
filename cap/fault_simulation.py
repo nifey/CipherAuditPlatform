@@ -5,7 +5,10 @@ import os
 import re
 import click
 import random
+import tempfile
 import subprocess
+from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 from .utils import compile_with_annotations
 
 annotation_definitions = """
@@ -76,22 +79,26 @@ quit
 """
 
 def run_gdb(scriptname, gdbscript, workdir):
-    # FIXME Need to run this in a container to prevent any accidental damage to system
-    # FIXME Need to run in separate temporary folder so that gdb.txt file won't clash
-    # FIXME Add a timeout
     if os.path.exists("gdb.txt"):
         os.remove("gdb.txt")
-    binary          = os.path.join(workdir, "bin")
-    scriptfilename  = os.path.join(workdir, scriptname)
-    with open(scriptfilename, "w+") as scriptfile:
-        scriptfile.write(gdbscript)
-    process = subprocess.run(["gdb", "-x", scriptfilename, binary], capture_output=True)
-    if process.returncode != 0:
-        click.echo("Error running GDB")
-        exit()
-    with open("gdb.txt", "r") as logfile:
-        log = logfile.read()
-    return log, str(process.stdout)
+    binary          = os.path.abspath(os.path.join(workdir, "bin"))
+    with tempfile.TemporaryDirectory() as tempdir:
+        with open(os.path.join(tempdir, scriptname), "w+") as scriptfile:
+            scriptfile.write(gdbscript)
+        try:
+            process = subprocess.run(["gdb", "-x", scriptname, binary],
+                                     capture_output=True,
+                                     cwd=tempdir, timeout=5)
+            if process.returncode != 0:
+                click.echo("Error running GDB")
+                exit()
+            with open(os.path.join(tempdir, "gdb.txt"), "r") as logfile:
+                log = logfile.read()
+            return log, str(process.stdout)
+        except subprocess.TimeoutExpired:
+            with open(os.path.join(tempdir, "gdb.txt"), "r") as logfile:
+                log = logfile.read()
+            return log, "TIMEOUT REACHED"
 
 def oracle_run(workdir):
     """
@@ -152,27 +159,31 @@ def generate(bitstring_length, n, mask):
 
 all_possible_bitflip_masks = []
 
+def one_fault_run(faultaddr, byte_mask, workdir):
+    # Generate the gdbscript with the address and mask to corrupt
+    gdbscript = re.sub("ADDRESS", str(hex(faultaddr)), fault_gdbscript)
+    gdbscript = re.sub("BYTEMASK", str(hex(byte_mask)), gdbscript)
+    filename = "fault-" + str(hex(faultaddr)) + "-" + str(hex(byte_mask))
+    log, output = run_gdb(filename+".gdb", gdbscript, workdir)
+    with open(os.path.join(workdir, filename+".log"), "w") as outfile:
+        outfile.write(output)
+        outfile.write(log)
+
 def fault_run(workdir, faults_per_byte, correct_output, addr_ranges):
     """
     Runs the annotated program with fault injection and stores the logs in the workdir
     """
-    # First generate the gdbscript with the address and mask to corrupt
+    faults = []
     for (startaddr, endaddr) in addr_ranges:
-        for faultaddr in range(startaddr,endaddr+1,8):
-            click.echo(">> Performing fault injection at " + str(hex(faultaddr)))
+        for faultaddr in range(startaddr,endaddr+1):
             for i in range(faults_per_byte):
                 rand_index = random.randint(0,len(all_possible_bitflip_masks)-1)
                 byte_mask = all_possible_bitflip_masks[rand_index]
-                gdbscript = re.sub("ADDRESS", str(hex(faultaddr)), fault_gdbscript)
-                gdbscript = re.sub("BYTEMASK", str(hex(byte_mask)), gdbscript)
-                filename = "fault-" + str(hex(faultaddr)) + "-" + str(hex(byte_mask))
-                log, output = run_gdb(filename+".gdb",
-                                      gdbscript, workdir)
-                with open(os.path.join(workdir, 
-                                       filename+".log"),
-                          "w") as outfile:
-                    outfile.write(output)
-                    outfile.write(log)
+                faults.append((faultaddr, byte_mask))
+    with ThreadPoolExecutor() as executor:
+        list(tqdm(executor.map(lambda x: one_fault_run(x[0], x[1], workdir), faults),
+                  total=len(faults), desc="Simulating faults in the annotated region",
+                  colour='Blue'))
 
 @click.command()
 @click.argument("annotated-c-file")
@@ -221,6 +232,7 @@ def show_fault_stats(workdir):
     """
     total_simulations = 0
     terminated_with_signal = {}  # Dictionary of signal to count
+    terminated_with_timeout = 0
     terminated_normally = [0, 0] # Correct / Incorrect output
     fault_effects = [] # List of tuples of form (original instruction, corrupted instruction)
     with open(os.path.join(workdir,"correct_output"), "r") as correct_output_file:
@@ -241,6 +253,10 @@ def show_fault_stats(workdir):
                     if signal not in terminated_with_signal:
                         terminated_with_signal[signal] = 0
                     terminated_with_signal[signal] += 1
+                elif "received signal SIGTRAP" in data:
+                    if "SIGTRAP" not in terminated_with_signal:
+                        terminated_with_signal["SIGTRAP"] = 0
+                    terminated_with_signal["SIGTRAP"] += 1
                 elif ">>>FAULTOUT" in data:
                     # Terminated normally, Check output
                     if len(data.split(">>>FAULTOUT")) != 2:
@@ -254,9 +270,13 @@ def show_fault_stats(workdir):
                         orig_inst = data.split(">> Original instruction")[1].split("\\n")[0].split("\\t")[1]
                         mod_inst = data.split(">> Modified instruction")[1].split("\\n")[0].split("\\t")[1]
                         fault_effects.append((orig_inst,mod_inst))
+                elif "TIMEOUT REACHED" in data:
+                    terminated_with_timeout += 1
                 else:
+                    click.echo(f"{file} is not matching any pattern")
                     total_simulations -= 1
     click.echo("{:30s} : {:10d}".format("Total simulations", total_simulations))
+    click.echo("{:30s} : {:10d}".format("Terminated with timeout", terminated_with_timeout))
     click.echo("{:30s} : {:10d}".format("Terminated with signal",
                                         sum(terminated_with_signal.values())))
     for signal in terminated_with_signal:
