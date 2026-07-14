@@ -1,6 +1,9 @@
+import os
 import click
+import subprocess
 from cap import CipherSpec, cipher_parser, fault_simulation
 from pyparsing import ParseException
+from cap.utils import check_for_annotations
 
 inbuilt_csls_files = {
     "AES-128"       : "AES_128.csl",
@@ -68,6 +71,37 @@ def synthesize_csl(cslfile):
         click.echo(e)
         exit()
 
+def pull_zeroization_docker_image():
+    process = subprocess.run(["docker", "image", "ls"], capture_output=True, text=True)
+    if process.returncode != 0:
+        click.echo("Command 'docker image ls' failed. Check if you have installed docker correctly")
+        exit()
+    if "ankitacool/gnuzero:latest" not in process.stdout:
+        # Docker image not present. Pull from Docker hub
+        process = subprocess.run(["docker", "pull", "ankitacool/gnuzero:latest"])
+        if process.returncode != 0:
+            click.echo("Docker pull of GNUZero image failed")
+            exit()
+        click.echo("Successfully pulled the docker image for zeroization")
+
+@click.command()
+@click.argument("annotated-c-file")
+def check_zeroization(annotated_c_file):
+    '''
+       Uses GNUZero to check if there are any missed zeroization
+    '''
+    check_for_annotations(annotated_c_file, ["SCRUB_ATTR"])
+    pull_zeroization_docker_image()
+
+    file_parts = annotated_c_file.split(os.path.sep)
+    if len(file_parts) == 1:
+        parent_directory="."
+        filename = file_parts[0]
+    else:
+        parent_directory=os.path.sep.join(file_parts[:-1])
+        filename = file_parts[-1]
+    os.system(f"docker run --rm -v \"{parent_directory}:/output\" -t ankitacool/gnuzero:latest gcc -fanalyzer -fplugin=/opt/CipherAuditPlatform/zeroisation/gnuzero/build_custom/libscrub.so -c /output/{filename}")
+
 @click.group()
 def cli():
     pass
@@ -75,6 +109,7 @@ cli.add_command(synthesize_csl)
 cli.add_command(list_csl)
 cli.add_command(fault_simulation.simulate_faults)
 cli.add_command(fault_simulation.show_fault_stats)
+cli.add_command(check_zeroization)
 
 if __name__ == "__main__":
     cli()
