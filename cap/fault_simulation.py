@@ -6,6 +6,7 @@ import re
 import click
 import random
 import subprocess
+from .utils import compile_with_annotations
 
 annotation_definitions = """
 #define FAULTINIT void __attribute__((optimize(0))) _fault_begin()  \\
@@ -22,28 +23,6 @@ annotation_definitions = """
     printf("\\n"); }
 
 """
-
-def compile(file, workdir):
-    """
-    Check if the the file contains the require annotations and compile
-    the annotated file for fault simulation
-    """
-    with open(file, 'r') as in_file:
-        data = in_file.read()
-        if ("FAULTINIT" not in data) or ("FAULTBEGIN" not in data) or \
-                ("FAULTEND" not in data) or ("FAULTOUTPUT" not in data):
-            click.echo(f"Error: File {file} does not contain all the required annotations (FAULTINIT, FAULTBEGIN, FAULTEND, FAULTOUTPUT)")
-            exit()
-        with open(os.path.join(workdir, "file.c"), "w+") as outfile:
-            outfile.write(annotation_definitions)
-            outfile.write(data)
-    command = ["gcc", os.path.join(workdir,"file.c"), "-o", os.path.join(workdir,"bin")]
-    process = subprocess.run(command)
-    if process.returncode != 0:
-        click.echo("Compilation with GCC failed. Exiting.")
-        return
-
-
 init_gdbscript = """
 set pagination off
 set logging on
@@ -224,7 +203,8 @@ def simulate_faults(annotated_c_file, workdir, bitflips, faults_per_byte):
        the array named arrayname which is of length len.
     """
     os.makedirs(workdir, exist_ok=True)
-    compile(annotated_c_file, workdir)
+    compile_with_annotations(annotated_c_file, workdir, annotation_definitions,
+                             ["FAULTINIT", "FAULTBEGIN", "FAULTEND", "FAULTOUTPUT"])
     correct_output, addr_ranges = oracle_run(workdir)
     with open(os.path.join(workdir,"correct_output"), "w") as correct_output_file:
         correct_output_file.write(correct_output)
