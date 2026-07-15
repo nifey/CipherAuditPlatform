@@ -14,7 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../../scrub.h"
+#include "scrub.h"
 
 /* BEGIN INPUT FROM include/sodium/private/common.h */
 

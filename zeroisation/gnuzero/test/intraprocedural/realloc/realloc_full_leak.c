@@ -1,5 +1,5 @@
 #include <stdlib.h>
-#include "../../scrub.h"
+#include "scrub.h"
 
 extern SCRUBBER_ATTR void scrubber_fn (void *);
 

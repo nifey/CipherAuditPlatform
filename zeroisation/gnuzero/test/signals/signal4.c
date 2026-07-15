@@ -3,7 +3,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../../scrub.h"
+#include "scrub.h"
  
 
 void sanfoundry_handler(int sig) {

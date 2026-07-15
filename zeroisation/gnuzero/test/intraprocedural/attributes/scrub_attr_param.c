@@ -1,4 +1,4 @@
-#include "../../scrub.h"
+#include "scrub.h"
 
 int
 foo (int *SCRUB_ATTR ptr)

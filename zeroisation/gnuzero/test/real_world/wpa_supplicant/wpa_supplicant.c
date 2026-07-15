@@ -159,7 +159,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#include "../../../scrub.h"
+#include "scrub.h"
 
 /* MACROS */
 #define ETH_ALEN 6

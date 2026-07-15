@@ -1,5 +1,7 @@
 import os
 import click
+import shutil
+import tempfile
 import subprocess
 from cap import CipherSpec, cipher_parser, fault_simulation
 from pyparsing import ParseException
@@ -100,7 +102,9 @@ def check_zeroization(annotated_c_file):
     else:
         parent_directory=os.path.sep.join(file_parts[:-1])
         filename = file_parts[-1]
-    os.system(f"docker run --rm -v \"{parent_directory}:/output\" -t ankitacool/gnuzero:latest gcc -fanalyzer -fplugin=/opt/CipherAuditPlatform/zeroisation/gnuzero/build_custom/libscrub.so -c /output/{filename}")
+    with tempfile.TemporaryDirectory() as tempdir:
+        shutil.copytree(parent_directory, tempdir, dirs_exist_ok=True)
+        os.system(f"docker run --rm -v \"{tempdir}:/output\" -t ankitacool/gnuzero:latest gcc -I/opt/CipherAuditPlatform/zeroisation/gnuzero -fanalyzer -fplugin=/opt/CipherAuditPlatform/zeroisation/gnuzero/build_custom/libscrub.so -c /output/{filename}")
 
 @click.group()
 def cli():

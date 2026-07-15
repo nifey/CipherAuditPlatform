@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "../../scrub.h"
+#include "scrub.h"
 
 // unable to detect that only first 4 bytes getting zeroised
 // GNUZero is probably not looking into what memset is actually doing, 

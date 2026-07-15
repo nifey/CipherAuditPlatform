@@ -1,4 +1,4 @@
-#include "../../scrub.h"
+#include "scrub.h"
 
 extern void gen (char *);
 

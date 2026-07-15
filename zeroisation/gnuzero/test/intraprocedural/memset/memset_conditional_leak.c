@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
-#include "../../scrub.h"
+#include "scrub.h"
 
 extern char some_cond;
 

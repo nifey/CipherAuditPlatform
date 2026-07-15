@@ -25,7 +25,7 @@
 #include <asm/byteorder.h>
 #include <linux/types.h>
 
-#include "../../../scrub.h"
+#include "scrub.h"
 
 /* TYPES */
 typedef __u32 u32;

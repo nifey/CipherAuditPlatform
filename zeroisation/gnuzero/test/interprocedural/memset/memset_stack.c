@@ -1,5 +1,5 @@
 #include <string.h>
-#include "../../scrub.h"
+#include "scrub.h"
 
 void
 bar (int *ptr, unsigned int size)

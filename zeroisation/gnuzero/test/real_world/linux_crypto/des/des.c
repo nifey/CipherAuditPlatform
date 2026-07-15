@@ -29,7 +29,7 @@
 #define ROL(x, r) ((x) = rol32 ((x), (r)))
 #define ROR(x, r) ((x) = ror32 ((x), (r)))
 
-#include "../../../scrub.h"
+#include "scrub.h"
 
 /* TYPES */
 typedef __u32 u32;

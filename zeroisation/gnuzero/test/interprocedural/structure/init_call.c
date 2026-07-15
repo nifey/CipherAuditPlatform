@@ -1,4 +1,4 @@
-#include "../../scrub.h"
+#include "scrub.h"
 
 
 extern SCRUBBER_ATTR void clear (struct foo *ctx);
