@@ -23,7 +23,7 @@ inbuilt_csls_descriptions = {
     "SPECK-128"     : "SPECK block cipher with 128 bit keys",
     "PRESENT-80"    : "PRESENT lightweight block cipher with 80 bit keys",
     "ASCON-128"     : "ASCON stream cipher with 128 bit keys",
-    "CHACHA20"      : "CHACHA20 stream cipher",
+    "CHACHA-20"     : "CHACHA20 stream cipher",
     "TRIVIUM"       : "TRIVIUM stream cipher",
         }
 
