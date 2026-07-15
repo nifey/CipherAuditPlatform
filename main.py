@@ -57,7 +57,6 @@ def synthesize_csl(cslfile):
         CSL specification) into a golden reference C implementation.
     '''
     if cslfile.upper() in inbuilt_csls_files:
-        click.echo(f"Using inbuilt CSL specification {cslfile}")
         cslfile = "specifications/" + inbuilt_csls_files[cslfile.upper()]
     try:
         with open(cslfile, "r") as infile:
