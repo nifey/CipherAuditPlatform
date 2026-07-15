@@ -66,7 +66,7 @@ def synthesize_csl(cslfile):
         click.echo(f"Error opening CSL file : {cslfile}")
         return
     try:
-        cipher : CipherSpec = cipher_parser().parseString(data)[0]
+        cipher : CipherSpec = cipher_parser().parse_string(data)[0]
         print(cipher.synthesize_c())
     except ParseException as e:
         click.echo("Parse error: ", end="")
