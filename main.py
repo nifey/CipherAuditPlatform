@@ -15,6 +15,7 @@ inbuilt_csls_files = {
     "ASCON-128"     : "ASCON128.csl",
     "CHACHA-20"     : "CHACHA20.csl",
     "TRIVIUM"       : "Trivium.csl",
+    "Grain-128a"    : "Grain128a.csl",
         }
 
 inbuilt_csls_descriptions = {
@@ -25,6 +26,7 @@ inbuilt_csls_descriptions = {
     "ASCON-128"     : "ASCON stream cipher with 128 bit keys",
     "CHACHA-20"     : "CHACHA20 stream cipher",
     "TRIVIUM"       : "TRIVIUM stream cipher",
+    "Grain-128a"    : "Grain-128 (with authentication) stream cipher",
         }
 
 @click.command()

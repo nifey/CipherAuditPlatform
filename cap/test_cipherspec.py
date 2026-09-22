@@ -244,6 +244,8 @@ cipher_testcases = [
                     ("F97",     "aa10856137c5a410 c4484049c5056bc1 2bfaa1972589c50d 69715fb4556decd1 d4d4834ea4923c12 ")]},
         {"file" : "specifications/Trivium.csl",  "declarations" : 4,     "operations" : 0,   "rounds" : 1282,
          "tests" : [("F1282",   "fb e0 bf 26 58 59 05 1b 51 7a 2e 4e 23 9f c9 7f ")]},
+        {"file" : "specifications/Grain128a.csl",  "declarations" : 2,     "operations" : 1,   "rounds" : 323,
+         "tests" : [("F323",   "444720688b0a3a7a ae586116c974f656 83a7e1384513c974 cd3d665090d68c01 564b3622 19bd90e3 4ff6a6c1")]},
         ]
 
 def test_cipher_parser():
