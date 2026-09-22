@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cipher Audit Platform</title>
+    <style>
+        /* Base Reset */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden; /* Prevents scrollbars while dragging */
+            background-color: #1e1e1e;
+        }
+
+        /* Layout Container */
+        .editor-container {
+            display: flex;
+            flex-direction: row;
+            height: calc(100vh - 50px);
+            width: 100vw;
+        }
+
+        /* Panes */
+        .pane {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .left-pane {
+            width: 60%; /* Initial split */
+            min-width: 10%;
+        }
+
+        .right-pane {
+            flex: 1; /* Takes the remaining space */
+            min-width: 10%;
+            background-color: #ffffff;
+        }
+
+        .heading {
+            min-width: 10%;
+            text-align: center;
+            color: #ffffff;
+            background-color: #252526;
+        }
+
+        /* Content Areas */
+        .code-area {
+            flex: 1;
+            width: 100%;
+            resize: none;
+            padding: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 15px;
+            line-height: 1.5;
+            border: none;
+            outline: none;
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        .output-area {
+            display: flex;
+            padding: 0px;
+            height: 100%;
+            overflow-y: auto;
+            color: #333;
+        }
+
+        /* Content Areas */
+        .output-code-area {
+            flex: 1;
+            width: 100%;
+            resize: none;
+            padding: 0px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 15px;
+            line-height: 1.5;
+            border: none;
+            outline: none;
+        }
+
+        /* Resizer Handle */
+        .resizer {
+            width: 6px;
+            background-color: #333333;
+            cursor: col-resize;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background-color 0.2s ease;
+            z-index: 10;
+        }
+
+        .resizer:hover, .resizer:active {
+            background-color: #007acc; /* VS Code blue */
+        }
+
+        /* Menu Bar */
+        .menu-bar {
+            height: 50px;
+            background-color: #252526;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            color: #cccccc;
+        }
+
+        .menu-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .menu-bar select, .menu-bar button {
+            background-color: #3c3c3c;
+            color: #cccccc;
+            border: 1px solid transparent;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .menu-bar button:hover, .menu-bar select:hover {
+            background-color: #505050;
+        }
+
+        .menu-bar .primary-btn {
+            background-color: #007acc;
+            color: white;
+        }
+
+        .menu-bar .primary-btn:hover {
+            background-color: #005f9e;
+        }
+
+        /* Responsive: Stack vertically on screens smaller than 768px */
+        @media (max-width: 768px) {
+            .editor-container {
+                flex-direction: column;
+            }
+            .left-pane {
+                width: 100% !important;
+                height: 50%; /* Initial vertical split */
+                min-height: 10%;
+            }
+            .right-pane {
+                width: 100%;
+            }
+            .resizer {
+                width: 100%;
+                height: 6px;
+                cursor: row-resize;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Menu Bar -->
+    <div class="menu-bar">
+        <div class="menu-group">
+            <button style="background-color:#d17146; color:#fdf6e3"><b>Cipher Audit Platform</b></button>
+            <a href="/csl"><button>CSL Synthesis</button></a>
+            <a href="/fault-simulation"><button>Fault simulation</button></a>
+            <a href="/zeroization"><button>Zeroization check</button></a>
+        </div>
+        <div class="menu-group">
+            {% block header_buttons %}
+            {% endblock header_buttons %}
+        </div>
+    </div>
+    {% block body_content %}
+    {% endblock body_content %}
+</body>
+</html>

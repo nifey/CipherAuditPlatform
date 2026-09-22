@@ -6,6 +6,7 @@ import subprocess
 from cap import CipherSpec, cipher_parser, fault_simulation
 from pyparsing import ParseException
 from cap.utils import check_for_annotations
+from cap.webui import webapp
 
 inbuilt_csls_files = {
     "AES-128"       : "AES_128.csl",
@@ -107,6 +108,10 @@ def check_zeroization(annotated_c_file):
         shutil.copytree(parent_directory, tempdir, dirs_exist_ok=True)
         os.system(f"docker run --rm -v \"{tempdir}:/output\" -t ankitacool/gnuzero:latest gcc -I/opt/CipherAuditPlatform/zeroisation/gnuzero -fanalyzer -fplugin=/opt/CipherAuditPlatform/zeroisation/gnuzero/build_custom/libscrub.so -c /output/{filename}")
 
+@click.command()
+def serve():
+    webapp.run(debug=True)
+ 
 @click.group()
 def cli():
     pass
@@ -115,6 +120,7 @@ cli.add_command(list_csl)
 cli.add_command(fault_simulation.simulate_faults)
 cli.add_command(fault_simulation.show_fault_stats)
 cli.add_command(check_zeroization)
+cli.add_command(serve)
 
 if __name__ == "__main__":
     cli()
