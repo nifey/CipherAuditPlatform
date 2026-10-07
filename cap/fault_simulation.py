@@ -223,18 +223,14 @@ def simulate_faults(annotated_c_file, workdir, bitflips, faults_per_byte):
     all_possible_bitflip_masks = generate(8, bitflips, 0xff)
     fault_run(workdir, faults_per_byte, correct_output, addr_ranges)
 
-@click.command()
-@click.argument("workdir")
-def show_fault_stats(workdir):
-    """
-    Show statistics for GDB-enabled fault simulation runs, based on the logs
-    stored in the specified work directory.
-    """
+def get_fault_stats(workdir):
     total_simulations = 0
-    terminated_with_signal = {}  # Dictionary of signal to count
-    terminated_with_timeout = 0
-    terminated_normally = [0, 0] # Correct / Incorrect output
+    termination_reason = {}
+    termination_reason["timeout"] = 0
+    termination_reason["normal-correct"] = 0
+    termination_reason["normal-incorrect"] = 0
     fault_effects = [] # List of tuples of form (original instruction, corrupted instruction)
+    errors = []
     with open(os.path.join(workdir,"correct_output"), "r") as correct_output_file:
         correct_output = correct_output_file.read()
     for file in os.listdir(workdir):
@@ -243,49 +239,68 @@ def show_fault_stats(workdir):
             with open(os.path.join(workdir,file), "r") as infile:
                 data = infile.read()
                 if "Terminated with Signal" in data:
-                    # Terminated with signal
                     signal = ""
                     for line in data.split("\n"):
                         if line.startswith("Catchpoint") and \
                                 line.split(" ")[2] == "(signal":
                             signal = line.split(" ")[3].split(")")[0]
                     assert signal != ""
-                    if signal not in terminated_with_signal:
-                        terminated_with_signal[signal] = 0
-                    terminated_with_signal[signal] += 1
+                    if signal not in termination_reason:
+                        termination_reason[signal] = 0
+                    termination_reason[signal] += 1
                 elif "received signal SIGTRAP" in data:
-                    if "SIGTRAP" not in terminated_with_signal:
-                        terminated_with_signal["SIGTRAP"] = 0
-                    terminated_with_signal["SIGTRAP"] += 1
+                    if "SIGTRAP" not in termination_reason:
+                        termination_reason["SIGTRAP"] = 0
+                    termination_reason["SIGTRAP"] += 1
                 elif ">>>FAULTOUT" in data:
                     # Terminated normally, Check output
                     if len(data.split(">>>FAULTOUT")) != 2:
-                        click.echo("Error: Incorrect number of FAULTOUT entries. Expected one")
-                        exit()
+                        errors.append("Error: Incorrect number of FAULTOUT entries in " + file)
+                        continue
                     if data.split(">>>FAULTOUT")[1].split("\\n")[0] == \
                             correct_output.split(">>>FAULTOUT")[1]:
-                        terminated_normally[0] += 1
+                        termination_reason["normal-correct"] += 1
                     else:
-                        terminated_normally[1] += 1
+                        termination_reason["normal-incorrect"] += 1
                         orig_inst = data.split(">> Original instruction")[1].split("\\n")[0].split("\\t")[1]
                         mod_inst = data.split(">> Modified instruction")[1].split("\\n")[0].split("\\t")[1]
                         fault_effects.append((orig_inst,mod_inst))
                 elif "TIMEOUT REACHED" in data:
-                    terminated_with_timeout += 1
+                    termination_reason["timeout"] += 1
                 else:
-                    click.echo(f"{file} is not matching any pattern")
+                    errors.append(f"{file} is not matching any termination pattern")
                     total_simulations -= 1
-    click.echo("{:30s} : {:10d}".format("Total simulations", total_simulations))
-    click.echo("{:30s} : {:10d}".format("Terminated with timeout", terminated_with_timeout))
-    click.echo("{:30s} : {:10d}".format("Terminated with signal",
-                                        sum(terminated_with_signal.values())))
-    for signal in terminated_with_signal:
-        click.echo("\t- {:15s} : {:10d}".format(signal, terminated_with_signal[signal]))
+    fault_stats = {}
+    fault_stats["total_simulations"] = total_simulations
+    fault_stats["termination_reason"] = termination_reason
+    fault_stats["fault_effects"] = fault_effects
+    fault_stats["errors"] = errors
+    return fault_stats
+
+@click.command()
+@click.argument("workdir")
+def show_fault_stats(workdir):
+    """
+    Show statistics for GDB-enabled fault simulation runs, based on the logs
+    stored in the specified work directory.
+    """
+    fault_stats = get_fault_stats(workdir)
+    click.echo("{:30s} : {:10d}".format("Total simulations", fault_stats["total_simulations"]))
+    termination_reason = fault_stats["termination_reason"]
+    click.echo("{:30s} : {:10d}".format("Terminated with timeout", termination_reason["timeout"]))
+    terminated_with_signal = 0
+    for signal in termination_reason:
+        if signal.startswith("SIG"):
+            terminated_with_signal += termination_reason[signal]
+    click.echo("{:30s} : {:10d}".format("Terminated with signal", terminated_with_signal))
+    for signal in termination_reason:
+        if signal.startswith("SIG"):
+            click.echo("\t- {:15s} : {:10d}".format(signal, termination_reason[signal]))
     click.echo("{:30s} : {:10d}".format("Terminated normally",
-                                        terminated_normally[0] + 
-                                            terminated_normally[1]))
-    click.echo("\t- {:15s} : {:10d}".format("Correct output", terminated_normally[0]))
-    click.echo("\t- {:15s} : {:10d}".format("Changed output", terminated_normally[1]))
+                                        termination_reason["normal-correct"] + 
+                                            termination_reason["normal-incorrect"]))
+    click.echo("\t- {:15s} : {:10d}".format("Correct output", termination_reason["normal-correct"]))
+    click.echo("\t- {:15s} : {:10d}".format("Changed output", termination_reason["normal-incorrect"]))
     click.echo("Fault instruction corruptions that changed output")
-    for (orig_inst, mod_inst) in fault_effects:
+    for (orig_inst, mod_inst) in fault_stats["fault_effects"]:
         click.echo("\t {:30s} ==> {:30s}".format(orig_inst, mod_inst))
