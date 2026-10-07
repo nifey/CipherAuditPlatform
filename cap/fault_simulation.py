@@ -3,6 +3,7 @@
 #################################################################################################
 import os
 import re
+import json
 import click
 import random
 import tempfile
@@ -157,7 +158,7 @@ def generate(bitstring_length, n, mask):
                                       0, generated_list)
     return generated_list
 
-all_possible_bitflip_masks = []
+all_possible_bitflip_masks = {}
 
 def one_fault_run(faultaddr, byte_mask, workdir):
     # Generate the gdbscript with the address and mask to corrupt
@@ -169,59 +170,32 @@ def one_fault_run(faultaddr, byte_mask, workdir):
         outfile.write(output)
         outfile.write(log)
 
-def fault_run(workdir, faults_per_byte, correct_output, addr_ranges):
+def run_fault_simulation(annotated_c_file, bitflips, faults_per_byte):
     """
     Runs the annotated program with fault injection and stores the logs in the workdir
     """
+    workdir = tempfile.TemporaryDirectory().name
+    os.mkdir(workdir)
+    compile_with_annotations(annotated_c_file, workdir, annotation_definitions,
+                         ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"])
+    correct_output, addr_ranges = oracle_run(workdir)
+    with open(os.path.join(workdir,"correct_output"), "w") as correct_output_file:
+        correct_output_file.write(correct_output)
+    global all_possible_bitflip_masks
+    if bitflips not in all_possible_bitflip_masks:
+        all_possible_bitflip_masks[bitflips] = generate(8, bitflips, 0xff)
     faults = []
     for (startaddr, endaddr) in addr_ranges:
         for faultaddr in range(startaddr,endaddr+1):
             for i in range(faults_per_byte):
-                rand_index = random.randint(0,len(all_possible_bitflip_masks)-1)
-                byte_mask = all_possible_bitflip_masks[rand_index]
+                rand_index = random.randint(0,len(all_possible_bitflip_masks[bitflips])-1)
+                byte_mask = all_possible_bitflip_masks[bitflips][rand_index]
                 faults.append((faultaddr, byte_mask))
     with ThreadPoolExecutor() as executor:
         list(tqdm(executor.map(lambda x: one_fault_run(x[0], x[1], workdir), faults),
                   total=len(faults), desc="Simulating faults in the annotated region",
                   colour='Blue'))
-
-@click.command()
-@click.argument("annotated-c-file")
-@click.argument("workdir")
-@click.option("--bitflips", "-b", default=3, help="Number of bit-flips to simulate (default:3)")
-@click.option("--faults-per-byte", "-n", default=10, help="Number of faults per byte to simulate (default:10)")
-def simulate_faults(annotated_c_file, workdir, bitflips, faults_per_byte):
-    """
-    - Simulates fault in cipher program based in the annotated region, 
-      and outputs statistics on how many faults were successful for a 
-      Differential Fault Attack on the Cipher.
-    - Currently supports Instruction corruption faults based on a 
-      N-bit flip model.
-    - The logs are stored in the work directory specified, and can then
-      be used to view statistics about the simulations
-    
-    Before running this command, you are expected to add the following 
-    annotations to the cipher program
-    1. FAULT_INIT : Defines the FaultSim helper functions in the C program
-    2. FAULT_BEGIN, FAULT_END
-        - Marks the beginning and end of the C program range where 
-          we want to simulate faults
-        - The FAULT_BEGIN and FAULT_END should be called at the same function 
-          call level, but can be called multiple times in the program
-        - FaultSim iterates through every byte in the specified regions and 
-          simulates faults in each of those bytes.
-    3. FAULT_OUTPUT(arrayname, len) : To mark the cipher output present in 
-       the array named arrayname which is of length len.
-    """
-    os.makedirs(workdir, exist_ok=True)
-    compile_with_annotations(annotated_c_file, workdir, annotation_definitions,
-                             ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"])
-    correct_output, addr_ranges = oracle_run(workdir)
-    with open(os.path.join(workdir,"correct_output"), "w") as correct_output_file:
-        correct_output_file.write(correct_output)
-    global all_possible_bitflip_masks
-    all_possible_bitflip_masks = generate(8, bitflips, 0xff)
-    fault_run(workdir, faults_per_byte, correct_output, addr_ranges)
+    return workdir
 
 def get_fault_stats(workdir):
     total_simulations = 0
@@ -278,13 +252,39 @@ def get_fault_stats(workdir):
     return fault_stats
 
 @click.command()
-@click.argument("workdir")
-def show_fault_stats(workdir):
+@click.argument("annotated-c-file")
+@click.option("--bitflips", "-b", default=3, help="Number of bit-flips to simulate (default:3)")
+@click.option("--faults-per-byte", "-n", default=10, help="Number of faults per byte to simulate (default:10)")
+def simulate_faults(annotated_c_file, bitflips, faults_per_byte):
     """
-    Show statistics for GDB-enabled fault simulation runs, based on the logs
-    stored in the specified work directory.
+    - Simulates fault in cipher program based in the annotated region, 
+      and outputs statistics on how many faults were successful for a 
+      Differential Fault Attack on the Cipher.
+    - Currently supports Instruction corruption faults based on a 
+      N-bit flip model.
+    
+    Before running this command, you are expected to add the following 
+    annotations to the cipher program
+    1. FAULT_INIT : Defines the FaultSim helper functions in the C program
+    2. FAULT_BEGIN, FAULT_END
+        - Marks the beginning and end of the C program range where 
+          we want to simulate faults
+        - The FAULT_BEGIN and FAULT_END should be called at the same function 
+          call level, but can be called multiple times in the program
+        - FaultSim iterates through every byte in the specified regions and 
+          simulates faults in each of those bytes.
+    3. FAULT_OUTPUT(arrayname, len) : To mark the cipher output present in 
+       the array named arrayname which is of length len.
     """
+    workdir = run_fault_simulation(annotated_c_file, bitflips, faults_per_byte)
+    click.echo("{:30s} : {:20s}".format("Work directory", workdir))
     fault_stats = get_fault_stats(workdir)
+
+    # Dump the statistics to output file
+    with open("fault_simulation_output.json", "w+") as dumpfile:
+        json.dump(fault_stats, dumpfile, indent=4)
+
+    # Print the statistics in the terminal
     click.echo("{:30s} : {:10d}".format("Total simulations", fault_stats["total_simulations"]))
     termination_reason = fault_stats["termination_reason"]
     click.echo("{:30s} : {:10d}".format("Terminated with timeout", termination_reason["timeout"]))
