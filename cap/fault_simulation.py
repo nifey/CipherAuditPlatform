@@ -12,14 +12,14 @@ from concurrent.futures import ThreadPoolExecutor
 from .utils import compile_with_annotations
 
 annotation_definitions = """
-#define FAULTINIT void __attribute__((optimize(0))) _fault_begin()  \\
+#define FAULT_INIT void __attribute__((optimize(0))) _fault_begin()  \\
     { printf("Beginning fault injection\\n"); }                      \\
     void __attribute__((optimize(0))) _fault_end()                  \\
     { printf("Finished fault injection\\n"); }
 
-#define FAULTBEGIN _fault_begin();
-#define FAULTEND   _fault_end();
-#define FAULTOUTPUT(arr,len) {                                      \\
+#define FAULT_BEGIN _fault_begin();
+#define FAULT_END   _fault_end();
+#define FAULT_OUTPUT(arr,len) {                                      \\
     printf("\\n>>>FAULTOUT ");                                       \\
     for (unsigned __faulti=0; __faulti<len; __faulti++)             \\
         printf("%lx ", arr[__faulti]);                              \\
@@ -202,20 +202,20 @@ def simulate_faults(annotated_c_file, workdir, bitflips, faults_per_byte):
     
     Before running this command, you are expected to add the following 
     annotations to the cipher program
-    1. FAULTINIT : Defines the FaultSim helper functions in the C program
-    2. FAULTBEGIN, FAULTEND
+    1. FAULT_INIT : Defines the FaultSim helper functions in the C program
+    2. FAULT_BEGIN, FAULT_END
         - Marks the beginning and end of the C program range where 
           we want to simulate faults
-        - The FAULTBEGIN and FAULTEND should be called at the same function 
+        - The FAULT_BEGIN and FAULT_END should be called at the same function 
           call level, but can be called multiple times in the program
         - FaultSim iterates through every byte in the specified regions and 
           simulates faults in each of those bytes.
-    3. FAULTOUTPUT(arrayname, len) : To mark the cipher output present in 
+    3. FAULT_OUTPUT(arrayname, len) : To mark the cipher output present in 
        the array named arrayname which is of length len.
     """
     os.makedirs(workdir, exist_ok=True)
     compile_with_annotations(annotated_c_file, workdir, annotation_definitions,
-                             ["FAULTINIT", "FAULTBEGIN", "FAULTEND", "FAULTOUTPUT"])
+                             ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"])
     correct_output, addr_ranges = oracle_run(workdir)
     with open(os.path.join(workdir,"correct_output"), "w") as correct_output_file:
         correct_output_file.write(correct_output)
