@@ -1,11 +1,8 @@
 import os
 import click
-import shutil
-import tempfile
-import subprocess
 from cap import CipherSpec, cipher_parser, fault_simulation
 from pyparsing import ParseException
-from cap.utils import check_for_annotations
+from cap.zeroization import run_gnuzero
 from cap.webui import webapp
 
 inbuilt_csls_files = {
@@ -75,27 +72,13 @@ def synthesize_csl(cslfile):
         click.echo(e)
         exit()
 
-def pull_zeroization_docker_image():
-    process = subprocess.run(["docker", "image", "ls"], capture_output=True, text=True)
-    if process.returncode != 0:
-        click.echo("Command 'docker image ls' failed. Check if you have installed docker correctly")
-        exit()
-    if "ankitacool/gnuzero:latest" not in process.stdout:
-        # Docker image not present. Pull from Docker hub
-        process = subprocess.run(["docker", "pull", "ankitacool/gnuzero:latest"])
-        if process.returncode != 0:
-            click.echo("Docker pull of GNUZero image failed")
-            exit()
-        click.echo("Successfully pulled the docker image for zeroization")
-
 @click.command()
 @click.argument("annotated-c-file")
 def check_zeroization(annotated_c_file):
     '''
        Uses GNUZero to check if there are any missed zeroization
     '''
-    check_for_annotations(annotated_c_file, ["SCRUB_ATTR"])
-    pull_zeroization_docker_image()
+    print(run_gnuzero(annotated_c_file)[0])
 
     file_parts = annotated_c_file.split(os.path.sep)
     if len(file_parts) == 1:

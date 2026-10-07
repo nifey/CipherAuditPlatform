@@ -6,15 +6,20 @@ import os
 import subprocess
 import click
 
-def check_for_annotations(file, required_annotations_list):
+def has_required_annotations(file, required_annotations_list):
     if len(required_annotations_list) == 0:
-        return
+        return True
     with open(file, 'r') as in_file:
         data = in_file.read()
         for required_annotation in required_annotations_list:
             if required_annotation not in data:
-                click.echo(f"Error: File {file} does not contain the required annotation {required_annotation}")
-                exit()
+                return False
+    return True
+
+def check_for_annotations(file, required_annotations_list):
+    if not has_required_annotations(file, required_annotations_list):
+        click.echo(f"Error: File {file} does not contain the required annotation {required_annotation}")
+        exit()
 
 def compile_with_annotations(file, workdir, annotation_definitions, required_annotations_list=[]):
     """

@@ -1,20 +1,14 @@
-{% extends "base.html" %}
+{% extends "twopane.html" %}
 
-{% block header_buttons %}
-<button id="loadBtn" title="Load File">📂 Load</button>
-<input type="file" id="fileInput" style="display: none;" accept=".csl">
-<button id="saveCSLBtn">💾 Save CSL</button>
-<button id="saveCBtn">💾 Save Generated C</button>
-<button id="runBtn" class="primary-btn" title="Run Code">▶ Run</button>
-{% endblock header_buttons %}
+{% block run_endpoint %}'runcsl'{% endblock run_endpoint %}
+{% block save_input_text %}Save CSL{% endblock save_input_text %}
+{% block save_input_filename %}'specification.csl'{% endblock save_input_filename %}
+{% block save_output_text %}Save Generated C{% endblock save_output_text %}
+{% block save_output_filename %}'generated_cipher.c'{% endblock save_output_filename %}
+{% block input_area_heading %}Input CSL Specification{% endblock input_area_heading %}
+{% block output_area_heading %}Output Generated C code{% endblock output_area_heading %}
 
-{% block body_content %}
-    <div class="editor-container" id="container">
-        <!-- Left Pane: Code Input -->
-        <div class="pane left-pane" id="leftPane">
-        <div class="heading">Input CSL Specification</div>
-        <div id="codeEditor" class="code-area">
-&ltbegin&gt
+{% block initial_input_text %}&ltbegin&gt
     &ltdeclaration&gt
         KEY[16] { 2b 7e 15 16 28 ae d2 a6 ab f7 15 88 09 cf 4f 3c}
     &lt/declaration&gt
@@ -35,168 +29,4 @@
         &lt for j in [0:15] &gt
         &lt F{i}[{j}]  : F_XOR( F{i-1}[{j}]  , F_MUL2( F{i-1}[{j}] ) ) &gt
     /&gt
-&ltend&gt
-        </div>
-        </div>
-
-        <!-- Draggable Resizer -->
-        <div class="resizer" id="resizer"></div>
-
-        <!-- Right Pane: Output/Preview -->
-        <div class="pane right-pane">
-            <div class="heading">Output Generated C code</div>
-            <div id="outputArea" class="output-area">
-                <div id="outputEditor" class="output-code-area"></div>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const resizer = document.getElementById('resizer');
-            const leftPane = document.getElementById('leftPane');
-            const container = document.getElementById('container');
-            const codeEditor = document.getElementById('codeEditor');
-            const fileInput = document.getElementById('fileInput');
-            const runBtn = document.getElementById('runBtn');
-
-            const saveCSLBtn = document.getElementById('saveCSLBtn');
-            saveCSLBtn.addEventListener('click', () => {
-                const blob = new Blob([editor.getValue()], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'specification.csl';
-                a.click();
-                URL.revokeObjectURL(url); // Clean up memory
-            });
-
-            const saveCBtn = document.getElementById('saveCBtn');
-            saveCBtn.addEventListener('click', () => {
-                const blob = new Blob([outputEditor.getValue()], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'generated_cipher.c';
-                a.click();
-                URL.revokeObjectURL(url); // Clean up memory
-            });
-
-            const loadBtn = document.getElementById('loadBtn');
-            loadBtn.addEventListener('click', () => {
-                fileInput.click(); // Trigger the hidden file input
-            });
-
-            let x = 0;
-            let y = 0;
-            let leftWidth = 0;
-            let leftHeight = 0;
-            let isMobile = false;
-
-            const mouseDownHandler = function (e) {
-                // Check if we are in the mobile stacked view
-                isMobile = window.innerWidth <= 768;
-
-                // Get the current mouse position
-                x = e.clientX;
-                y = e.clientY;
-                
-                // Get the current dimensions of the left pane
-                const leftRect = leftPane.getBoundingClientRect();
-                leftWidth = leftRect.width;
-                leftHeight = leftRect.height;
-
-                // Attach the listeners to `document` so dragging works even if the mouse leaves the resizer
-                document.addEventListener('mousemove', mouseMoveHandler);
-                document.addEventListener('mouseup', mouseUpHandler);
-                
-                // Prevent text selection across the page while dragging
-                document.body.style.userSelect = 'none';
-                document.body.style.pointerEvents = 'none'; 
-                resizer.style.pointerEvents = 'auto'; // Keep resizer active
-            };
-
-            const mouseMoveHandler = function (e) {
-                if (isMobile) {
-                    // Vertical dragging logic for mobile
-                    const dy = e.clientY - y;
-                    const containerHeight = container.getBoundingClientRect().height;
-                    const newHeight = ((leftHeight + dy) * 100) / containerHeight;
-                    leftPane.style.height = `${newHeight}%`;
-                } else {
-                    // Horizontal dragging logic for desktop
-                    const dx = e.clientX - x;
-                    const containerWidth = container.getBoundingClientRect().width;
-                    const newWidth = ((leftWidth + dx) * 100) / containerWidth;
-                    leftPane.style.width = `${newWidth}%`;
-                }
-            };
-
-            const mouseUpHandler = function () {
-                // Remove the drag event listeners
-                document.removeEventListener('mousemove', mouseMoveHandler);
-                document.removeEventListener('mouseup', mouseUpHandler);
-                
-                // Restore text selection and pointer events
-                document.body.style.userSelect = 'auto';
-                document.body.style.pointerEvents = 'auto';
-            };
-
-            // Reset inline styles on window resize to prevent layout breaking when moving from mobile to desktop
-            window.addEventListener('resize', () => {
-                leftPane.style.width = '';
-                leftPane.style.height = '';
-            });
-
-            // Attach the initial mousedown event listener
-            resizer.addEventListener('mousedown', mouseDownHandler);
-
-            fileInput.addEventListener('change', (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    editor.setValue(event.target.result, -1);
-                };
-                reader.readAsText(file);
-            });
-
-            // Run Handler
-            runBtn.addEventListener('click', () => {
-                const fileContents = editor.getValue();
-                fetch('runcap', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: fileContents
-                })
-                .then(response => {
-                    if (!response.ok)
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    if ('error' in data) {
-                        outputEditor.setValue(data['error']);
-                    } else {
-                        outputEditor.setValue(data['output']);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error submitting file:', error);
-                });
-            });
-        });
-    </script>
-    <script src="{{url_for('static', filename='ace/ace.js')}}" type="text/javascript" charset="utf-8"></script>
-    <script>
-        var editor = ace.edit("codeEditor");
-        editor.setTheme("ace/theme/monokai");
-        editor.session.setMode("ace/mode/c_cpp");
-        editor.setOption("showPrintMargin", false)
-        var outputEditor = ace.edit("outputEditor");
-        outputEditor.setTheme("ace/theme/solarized_light");
-        outputEditor.setOptions({readOnly:true, showLineNumbers:false, showPrintMargin:false});
-        outputEditor.session.setMode("ace/mode/c_cpp");
-    </script>
-{% endblock body_content %}
+&ltend&gt{% endblock initial_input_text %}
