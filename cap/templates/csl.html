@@ -30,3 +30,41 @@
         &lt F{i}[{j}]  : F_XOR( F{i-1}[{j}]  , F_MUL2( F{i-1}[{j}] ) ) &gt
     /&gt
 &ltend&gt{% endblock initial_input_text %}
+
+{% block additional_header %}
+<select id="inbuiltcsl" name="In-built CSL" style="width:100px" >
+  <option value="" selected disabled hidden>Pick in-built CSL</option>
+  {% for key in inbuilt_csls %}
+  <option value="{{key}}">{{inbuilt_csls[key]}}</option>
+  {% endfor %}
+</select>
+<button id="loadInbuiltBtn" title="Load In-built CSL">📂 Load In-built CSL</button>
+{% endblock additional_header %}
+
+{% block additional_handlers %}
+        const loadInbuiltBtn = document.getElementById('loadInbuiltBtn');
+        loadInbuiltBtn.addEventListener('click', () => {
+            var parameters = {};
+            parameters["inbuiltcsl"] = document.getElementById('inbuiltcsl').value;
+            fetch("inbuiltcsl", {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(parameters)
+            })
+            .then(response => {
+                if (!response.ok)
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                return response.json();
+            })
+            .then(data => {
+                if ('error' in data) {
+                    outputEditor.setValue(data['error']);
+                } else {
+                    editor.setValue(data['output']);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading In-built CSL:', error);
+            });
+        });
+{% endblock additional_handlers %}

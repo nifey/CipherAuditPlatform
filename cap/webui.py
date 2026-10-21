@@ -4,6 +4,7 @@ import json
 import tempfile
 from flask import Flask, render_template, request
 from cap import CipherSpec, cipher_parser
+from cap import inbuilt_csls_files, inbuilt_csls_descriptions
 from cap.zeroization import run_gnuzero
 from cap.fault_simulation import run_fault_simulation, get_fault_stats
 from pyparsing import ParseException
@@ -18,9 +19,25 @@ webapp = Flask("CAP WebUI",
 def home():
     return render_template("index.html")
 
+@webapp.route("/inbuiltcsl", methods=["POST"])
+def inbuilt_csl():
+    data = {}
+    try:
+        requestJSON = json.loads(request.data.decode())
+        cslfile : str = requestJSON["inbuiltcsl"]
+        if cslfile.upper() not in inbuilt_csls_files:
+            data['error'] = "Invalide CSL file provided"
+        else:
+            cslfile = "specifications/" + inbuilt_csls_files[cslfile.upper()]
+            with open(cslfile, "r") as infile:
+                data['output'] = infile.read()
+    except ParseException as e:
+        data['error'] = "Error loading CSL file"
+    return json.dumps(data)
+
 @webapp.route("/csl")
 def csl():
-    return render_template("csl.html")
+    return render_template("csl.html", inbuilt_csls=inbuilt_csls_descriptions)
 
 @webapp.route("/runcsl", methods=["POST"])
 def runcsl():

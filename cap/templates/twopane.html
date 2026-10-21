@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 
 {% block header_buttons %}
-{% block run_parameters %}
-{% endblock run_parameters %}
+{% block additional_header %}
+{% endblock additional_header %}
 <button id="loadBtn" title="Load File">📂 Load</button>
 <input type="file" id="fileInput" style="display: none;" accept=".c,.csl">
 <button id="saveInputBtn">💾 {% block save_input_text %}{% endblock save_input_text %}</button>
@@ -167,6 +167,8 @@
                     console.error('Error submitting file:', error);
                 });
             });
+
+            {% block additional_handlers %}{% endblock additional_handlers %}
         });
     </script>
     <script src="{{url_for('static', filename='ace/ace.js')}}" type="text/javascript" charset="utf-8"></script>

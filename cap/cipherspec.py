@@ -11,6 +11,28 @@
 #       - Part        : Individual operations performed in the round (one for each value written)
 #################################################################################################
 
+inbuilt_csls_files = {
+    "AES-128"       : "AES_128.csl",
+    "CLEFIA-128"    : "CLEFIA_128.csl",
+    "SPECK-128"     : "SPECK_128.csl",
+    "PRESENT-80"    : "PRESENT_80.csl",
+    "ASCON-128"     : "ASCON128.csl",
+    "CHACHA-20"     : "CHACHA20.csl",
+    "TRIVIUM"       : "Trivium.csl",
+    "GRAIN-128A"    : "Grain128a.csl",
+        }
+
+inbuilt_csls_descriptions = {
+    "AES-128"       : "AES block cipher with 128 bit keys",
+    "CLEFIA-128"    : "CLEFIA block cipher with 128 bit keys",
+    "SPECK-128"     : "SPECK block cipher with 128 bit keys",
+    "PRESENT-80"    : "PRESENT lightweight block cipher with 80 bit keys",
+    "ASCON-128"     : "ASCON stream cipher with 128 bit keys",
+    "CHACHA-20"     : "CHACHA20 stream cipher",
+    "TRIVIUM"       : "TRIVIUM stream cipher",
+    "GRAIN-128A"    : "Grain-128 (with authentication) stream cipher",
+        }
+
 #################################################################################################
 # Parsers and the Grammar of CSL
 #################################################################################################
