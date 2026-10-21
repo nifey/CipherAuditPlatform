@@ -10,7 +10,7 @@ import tempfile
 import subprocess
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor
-from .utils import compile_with_annotations
+from .utils import has_required_annotations, compile_with_annotations
 
 annotation_definitions = """
 #define FAULT_INIT void __attribute__((optimize(0))) _fault_begin()  \\
@@ -176,6 +176,9 @@ def run_fault_simulation(annotated_c_file, bitflips, faults_per_byte):
     """
     workdir = tempfile.TemporaryDirectory().name
     os.mkdir(workdir)
+    if not has_required_annotations(annotated_c_file,
+                                    ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"]):
+        return ("", "Error: File does not contain all required annotations")
     compile_with_annotations(annotated_c_file, workdir, annotation_definitions,
                          ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"])
     correct_output, addr_ranges = oracle_run(workdir)
@@ -195,7 +198,7 @@ def run_fault_simulation(annotated_c_file, bitflips, faults_per_byte):
         list(tqdm(executor.map(lambda x: one_fault_run(x[0], x[1], workdir), faults),
                   total=len(faults), desc="Simulating faults in the annotated region",
                   colour='Blue'))
-    return workdir
+    return (workdir, "")
 
 def get_fault_stats(workdir):
     total_simulations = 0
@@ -276,7 +279,10 @@ def simulate_faults(annotated_c_file, bitflips, faults_per_byte):
     3. FAULT_OUTPUT(arrayname, len) : To mark the cipher output present in 
        the array named arrayname which is of length len.
     """
-    workdir = run_fault_simulation(annotated_c_file, bitflips, faults_per_byte)
+    workdir, error = run_fault_simulation(annotated_c_file, bitflips, faults_per_byte)
+    if error != "":
+        click.echo(error)
+        exit(1)
     click.echo("{:30s} : {:20s}".format("Work directory", workdir))
     fault_stats = get_fault_stats(workdir)
 

@@ -5,6 +5,7 @@ import tempfile
 from flask import Flask, render_template, request
 from cap import CipherSpec, cipher_parser
 from cap.zeroization import run_gnuzero
+from cap.fault_simulation import run_fault_simulation, get_fault_stats
 from pyparsing import ParseException
 
 template_folder_path = os.path.abspath("cap/templates")
@@ -51,6 +52,27 @@ def runzeroization():
                 data['output'] = re.sub(r'\[K', '', stdout)
             else:
                 data['error'] = stderr
+    except ParseException as e:
+        data['error'] = "Parse error: " + str(e)
+    return json.dumps(data)
+
+@webapp.route("/faultsimulation")
+def fault_simulation():
+    return render_template("faultsimulation.html")
+
+@webapp.route("/runfaultsimulation", methods=["POST"])
+def runfaultsimulation():
+    data = {}
+    try:
+        input_code : str = request.data.decode()
+        with tempfile.NamedTemporaryFile() as infile:
+            infile.file.write(input_code.encode())
+            workdir, error = run_fault_simulation(infile.name, 3, 10)
+            if error != "":
+                data['error'] = error
+            else:
+                fault_stats = get_fault_stats(workdir)
+                data['output'] = str(fault_stats)
     except ParseException as e:
         data['error'] = "Parse error: " + str(e)
     return json.dumps(data)
