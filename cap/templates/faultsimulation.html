@@ -9,3 +9,13 @@
 {% block output_area_heading %}Fault simulation report{% endblock output_area_heading %}
 
 {% block initial_input_text %}{% endblock initial_input_text %}
+
+{% block run_parameters %}
+Bitflips per byte:  <input id="bitflips"      style="width:30px" type="number" min="1" max="8" value="3">
+Faults per byte:    <input id="faultsPerByte" style="width:40px" type="number" min="1" max="20" value="5">
+{% endblock run_parameters %}
+
+{% block get_run_parameters %}
+parameters["bitflips"] = document.getElementById('bitflips').value;
+parameters["faultsPerByte"] = document.getElementById('faultsPerByte').value;
+{% endblock get_run_parameters %}

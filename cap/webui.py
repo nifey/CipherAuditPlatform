@@ -26,7 +26,8 @@ def csl():
 def runcsl():
     data = {}
     try:
-        cipher : CipherSpec = cipher_parser().parse_string(request.data.decode())[0]
+        requestJSON = json.loads(request.data.decode())
+        cipher : CipherSpec = cipher_parser().parse_string(requestJSON["fileContents"])[0]
         data['output'] = cipher.synthesize_c()
     except ParseException as e:
         data['error'] = "Parse error: " + str(e)
@@ -40,7 +41,8 @@ def zeroization():
 def runzeroization():
     data = {}
     try:
-        input_code : str = request.data.decode()
+        requestJSON = json.loads(request.data.decode())
+        input_code : str = requestJSON["fileContents"]
         with tempfile.NamedTemporaryFile() as infile:
             infile.file.write("#include \"scrub.h\"\n".encode())
             infile.file.write(input_code.encode())
@@ -64,10 +66,13 @@ def fault_simulation():
 def runfaultsimulation():
     data = {}
     try:
-        input_code : str = request.data.decode()
+        requestJSON = json.loads(request.data.decode())
+        input_code : str = requestJSON["fileContents"]
+        bitflips : int = int(requestJSON["bitflips"])
+        faultsPerByte : int = int(requestJSON["faultsPerByte"])
         with tempfile.NamedTemporaryFile() as infile:
             infile.file.write(input_code.encode())
-            workdir, error = run_fault_simulation(infile.name, 3, 10)
+            workdir, error = run_fault_simulation(infile.name, bitflips, faultsPerByte)
             if error != "":
                 data['error'] = error
             else:

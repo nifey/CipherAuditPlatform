@@ -174,6 +174,10 @@ def run_fault_simulation(annotated_c_file, bitflips, faults_per_byte):
     """
     Runs the annotated program with fault injection and stores the logs in the workdir
     """
+    if bitflips <= 0 or bitflips > 8:
+        return ("", "Error: Invalid bitflip value specified")
+    if faults_per_byte <= 0:
+        return ("", "Error: Invalid faults per byte value specified")
     workdir = tempfile.TemporaryDirectory().name
     os.mkdir(workdir)
     if not has_required_annotations(annotated_c_file,

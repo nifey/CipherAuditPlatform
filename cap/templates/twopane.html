@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 
 {% block header_buttons %}
+{% block run_parameters %}
+{% endblock run_parameters %}
 <button id="loadBtn" title="Load File">📂 Load</button>
 <input type="file" id="fileInput" style="display: none;" accept=".c,.csl">
 <button id="saveInputBtn">💾 {% block save_input_text %}{% endblock save_input_text %}</button>
@@ -141,11 +143,13 @@
 
             // Run Handler
             runBtn.addEventListener('click', () => {
-                const fileContents = editor.getValue();
+                var parameters = {};
+                parameters["fileContents"] = editor.getValue();
+                {% block get_run_parameters %}{% endblock get_run_parameters %}
                 fetch({% block run_endpoint %}{% endblock run_endpoint %}, {
                     method: 'POST',
                     headers: { 'Content-Type': 'text/plain' },
-                    body: fileContents
+                    body: JSON.stringify(parameters)
                 })
                 .then(response => {
                     if (!response.ok)
