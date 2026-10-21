@@ -101,7 +101,6 @@ def cli():
 cli.add_command(synthesize_csl)
 cli.add_command(list_csl)
 cli.add_command(fault_simulation.simulate_faults)
-cli.add_command(fault_simulation.show_fault_stats)
 cli.add_command(check_zeroization)
 cli.add_command(serve)
 

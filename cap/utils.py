@@ -18,7 +18,7 @@ def has_required_annotations(file, required_annotations_list):
 
 def check_for_annotations(file, required_annotations_list):
     if not has_required_annotations(file, required_annotations_list):
-        click.echo(f"Error: File {file} does not contain the required annotation {required_annotation}")
+        click.echo(f"Error: File {file} does not contain the required annotation {required_annotations_list}")
         exit()
 
 def compile_with_annotations(file, workdir, annotation_definitions, required_annotations_list=[]):
