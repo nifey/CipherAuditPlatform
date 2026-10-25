@@ -39,7 +39,7 @@ def compile_with_annotations(file, workdir, annotation_definitions, required_ann
             outfile.write(annotation_definitions)
             outfile.write(data)
     command = ["gcc", os.path.join(workdir,"file.c"), "-o", os.path.join(workdir,"bin")]
-    process = subprocess.run(command)
+    process = subprocess.run(command, capture_output=True)
     if process.returncode != 0:
-        click.echo("Compilation with GCC failed. Exiting.")
-        return
+        return "Compilation with GCC failed: " + process.stderr.decode()
+    return None

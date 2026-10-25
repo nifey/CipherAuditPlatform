@@ -183,8 +183,10 @@ def run_fault_simulation(annotated_c_file, bitflips, faults_per_byte):
     if not has_required_annotations(annotated_c_file,
                                     ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"]):
         return ("", "Error: File does not contain all required annotations")
-    compile_with_annotations(annotated_c_file, workdir, annotation_definitions,
+    err = compile_with_annotations(annotated_c_file, workdir, annotation_definitions,
                          ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"])
+    if err:
+        return ("", err)
     correct_output, addr_ranges = oracle_run(workdir)
     with open(os.path.join(workdir,"correct_output"), "w") as correct_output_file:
         correct_output_file.write(correct_output)
