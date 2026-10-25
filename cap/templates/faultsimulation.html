@@ -19,3 +19,23 @@ Faults per byte:    <input id="faultsPerByte" style="width:40px" type="number" m
 parameters["bitflips"] = document.getElementById('bitflips').value;
 parameters["faultsPerByte"] = document.getElementById('faultsPerByte').value;
 {% endblock get_run_parameters %}
+
+{% block output_formatting %}
+var faultStats = JSON.parse(data['output'])
+var formattedOutput = ""
+formattedOutput += "# Fault simulation statistics\n"
+formattedOutput += "Total simulations   : " + faultStats['total_simulations'] + "\n";
+formattedOutput += "Termination Reasons : \n";
+formattedOutput += "- Normal exit with altered output : " + faultStats['termination_reason']['normal-incorrect'] + "\n";
+formattedOutput += "- Normal exit with correct output : " + faultStats['termination_reason']['normal-correct'] + "\n";
+formattedOutput += "- Terminated due to timeout       : " + faultStats['termination_reason']['timeout'] + "\n";
+for (reason in faultStats['termination_reason']) {
+    if (reason.startsWith("SIG"))
+        formattedOutput += "- Terminated due to signal " + reason + " : " + faultStats['termination_reason'][reason] + "\n";
+}
+formattedOutput += "\n\n# Fault effects for normal exits with altered output\n";
+for (index in faultStats['fault_effects']) {
+    formattedOutput += "- " + faultStats['fault_effects'][index][0] + " ==> " + faultStats['fault_effects'][index][1] + "\n";
+}
+outputEditor.setValue(formattedOutput);
+{% endblock output_formatting %}

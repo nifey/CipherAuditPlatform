@@ -161,6 +161,8 @@
                         outputEditor.setValue(data['error']);
                     } else {
                         outputEditor.setValue(data['output']);
+                        {% block output_formatting %}
+                        {% endblock output_formatting %}
                     }
                 })
                 .catch(error => {

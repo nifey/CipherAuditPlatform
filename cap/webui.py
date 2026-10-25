@@ -93,8 +93,7 @@ def runfaultsimulation():
             if error != "":
                 data['error'] = error
             else:
-                fault_stats = get_fault_stats(workdir)
-                data['output'] = str(fault_stats)
+                data['output'] = json.dumps(get_fault_stats(workdir))
     except ParseException as e:
         data['error'] = "Parse error: " + str(e)
     return json.dumps(data)
