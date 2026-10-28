@@ -59,17 +59,6 @@ def check_zeroization(annotated_c_file):
     '''
     print(run_gnuzero(annotated_c_file)[0])
 
-    file_parts = annotated_c_file.split(os.path.sep)
-    if len(file_parts) == 1:
-        parent_directory="."
-        filename = file_parts[0]
-    else:
-        parent_directory=os.path.sep.join(file_parts[:-1])
-        filename = file_parts[-1]
-    with tempfile.TemporaryDirectory() as tempdir:
-        shutil.copytree(parent_directory, tempdir, dirs_exist_ok=True)
-        os.system(f"docker run --rm -v \"{tempdir}:/output\" -t ankitacool/gnuzero:latest gcc -I/opt/CipherAuditPlatform/zeroisation/gnuzero -fanalyzer -fplugin=/opt/CipherAuditPlatform/zeroisation/gnuzero/build_custom/libscrub.so -c /output/{filename}")
-
 @click.command()
 def serve():
     webapp.run(debug=True)
