@@ -19,8 +19,10 @@ def pull_zeroization_docker_image():
 
 def run_gnuzero(annotated_c_file):
     pull_zeroization_docker_image()
-    if not has_required_annotations(annotated_c_file, ["SCRUB_ATTR"]):
-        return ("", "Error: File does not contain all required annotations")
+    contains_annotation, missed_annotation = has_required_annotations(
+            annotated_c_file, ["SCRUB_ATTR"])
+    if not contains_annotation:
+        return ("", "Error: File does not contain the required annotation " + missed_annotation)
     file_parts = annotated_c_file.split(os.path.sep)
     if len(file_parts) == 1:
         parent_directory = "."

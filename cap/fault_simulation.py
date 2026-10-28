@@ -178,9 +178,11 @@ def run_fault_simulation(annotated_c_file, bitflips, faults_per_byte):
         return ("", "Error: Invalid faults per byte value specified")
     workdir = tempfile.TemporaryDirectory().name
     os.mkdir(workdir)
-    if not has_required_annotations(annotated_c_file,
-                                    ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"]):
-        return ("", "Error: File does not contain all required annotations")
+    contains_annotation, missed_annotation = has_required_annotations(
+            annotated_c_file,
+            ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"])
+    if not contains_annotation:
+        return ("", "Error: File does not contain the required annotation " + missed_annotation)
     err = compile_with_annotations(annotated_c_file, workdir, annotation_definitions,
                          ["FAULT_INIT", "FAULT_BEGIN", "FAULT_END", "FAULT_OUTPUT"])
     if err:

@@ -8,13 +8,13 @@ import click
 
 def has_required_annotations(file, required_annotations_list):
     if len(required_annotations_list) == 0:
-        return True
+        return True, ""
     with open(file, 'r') as in_file:
         data = in_file.read()
         for required_annotation in required_annotations_list:
             if required_annotation not in data:
-                return False
-    return True
+                return False, required_annotation
+    return True, ""
 
 def check_for_annotations(file, required_annotations_list):
     if not has_required_annotations(file, required_annotations_list):
