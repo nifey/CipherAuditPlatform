@@ -97,9 +97,7 @@ def run_gdb(scriptname, gdbscript, workdir):
                 log = logfile.read()
             return log, str(process.stdout)
         except subprocess.TimeoutExpired:
-            with open(os.path.join(tempdir, "gdb.txt"), "r") as logfile:
-                log = logfile.read()
-            return log, "TIMEOUT REACHED"
+            return "", "TIMEOUT REACHED"
 
 def oracle_run(workdir):
     """
