@@ -60,9 +60,11 @@ def runzeroization():
     try:
         requestJSON = json.loads(request.data.decode())
         input_code : str = requestJSON["fileContents"]
-        with tempfile.NamedTemporaryFile() as infile:
-            infile.file.write("#include \"scrub.h\"\n".encode())
-            infile.file.write(input_code.encode())
+        if isinstance(input_code, (bytes, bytearray)):
+            input_code = input_code.decode()
+        with tempfile.NamedTemporaryFile(mode="w+",delete=False) as infile:
+            infile.file.write(input_code)
+            infile.file.close()
             stdout, stderr = run_gnuzero(infile.name)
             if stderr == "":
                 # Remove Bash ANSI error codes

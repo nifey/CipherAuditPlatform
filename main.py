@@ -57,7 +57,11 @@ def check_zeroization(annotated_c_file):
     '''
        Uses GNUZero to check if there are any missed zeroization
     '''
-    print(run_gnuzero(annotated_c_file)[0])
+    output, error = run_gnuzero(annotated_c_file)
+    if error != "":
+        click.echo(error)
+    else:
+        click.echo(output)
 
 @click.command()
 def serve():

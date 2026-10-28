@@ -31,7 +31,11 @@ def run_gnuzero(annotated_c_file):
         parent_directory = os.path.sep.join(file_parts[:-1])
         filename = file_parts[-1]
     with tempfile.TemporaryDirectory() as tempdir:
-        shutil.copyfile(annotated_c_file, os.path.join(tempdir, filename + ".c"))
+        # Add the include file to the input file
+        with open(os.path.join(tempdir, filename + ".c"), "w+") as inputfile:
+            with open(annotated_c_file, 'r') as annofile:
+                inputfile.write("#include \"scrub.h\"\n")
+                inputfile.write(annofile.read())
         command = "docker run --rm -v " + tempdir + ":/output -t ankitacool/gnuzero:latest gcc -I/opt/CipherAuditPlatform/zeroisation/gnuzero -fanalyzer -fplugin=/opt/CipherAuditPlatform/zeroisation/gnuzero/build_custom/libscrub.so -c /output/" + filename + ".c"
         output = subprocess.run(command, shell=True, capture_output=True)
         return (output.stdout.decode(), output.stderr.decode())
