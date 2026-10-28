@@ -87,7 +87,7 @@ def run_gdb(scriptname, gdbscript, workdir):
         with open(os.path.join(tempdir, scriptname), "w+") as scriptfile:
             scriptfile.write(gdbscript)
         try:
-            process = subprocess.run(["gdb", "-x", scriptname, binary],
+            process = subprocess.run(["gdb", "-x", scriptname, "--batch", binary],
                                      capture_output=True,
                                      cwd=tempdir, timeout=5)
             if process.returncode != 0:
