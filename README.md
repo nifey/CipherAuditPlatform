@@ -8,14 +8,7 @@ Block cipher algorithms have to be specified in Cipher Specification Language (C
 - [cap/cipherspec.py](cap/cipherspec.py) contains the complete grammar of Cipher Specification Language.
 
 ## Installation and Usage
+We recommend using [uv](https://docs.astral.sh/uv/) to run CAP as follows:
 ```sh
-# Create a python virtual environment
-python -m venv env
-source env/bin/activate
-
-# Install dependencies using pip
-pip install -e .
-
-# Run CAP
-python main.py <csl-file>
+uv run main.py <csl-file>
 ```
