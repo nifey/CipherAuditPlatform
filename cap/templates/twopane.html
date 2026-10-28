@@ -145,6 +145,7 @@
             runBtn.addEventListener('click', () => {
                 var parameters = {};
                 parameters["fileContents"] = editor.getValue();
+                outputEditor.setValue('');
                 {% block get_run_parameters %}{% endblock get_run_parameters %}
                 fetch({% block run_endpoint %}{% endblock run_endpoint %}, {
                     method: 'POST',

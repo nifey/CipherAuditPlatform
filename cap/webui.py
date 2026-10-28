@@ -91,6 +91,7 @@ def runfaultsimulation():
         faultsPerByte : int = int(requestJSON["faultsPerByte"])
         with tempfile.NamedTemporaryFile() as infile:
             infile.file.write(input_code.encode())
+            infile.file.close()
             workdir, error = run_fault_simulation(infile.name, bitflips, faultsPerByte)
             if error != "":
                 data['error'] = error
