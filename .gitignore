@@ -9,3 +9,14 @@ wheels/
 # Virtual environments
 .venv
 env/
+
+# C build artifacts
+*.o
+*.a
+
+# Compiled executables (no extension, so list them or use a folder)
+*.out
+
+# GCC analyzer / plugin dump files
+*.dump
+*.analyzer.txt
