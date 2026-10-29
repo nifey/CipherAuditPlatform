@@ -58,7 +58,7 @@ void encrypt(uint64_t F0[16], uint64_t ciphertext[16]) {
 
    
     uint64_t buf[2]= {0};
-    buf[1] = F[1][15]; // Initialize j to 0
+    buf[1] = F[1][15]; 
 
     // Round F2
     F[2][0] = SBOX[F[1][0]];
@@ -82,7 +82,7 @@ void encrypt(uint64_t F0[16], uint64_t ciphertext[16]) {
     F[1][14] = 0;
     F[1][15] = 0;
 
-    buf[1] = 0;
+    
 
     F[2][0] = 0;
 
