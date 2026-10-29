@@ -2,22 +2,26 @@
 
 {% block body_content %}
 
-<div>
+<div class="center-container" style="color:white">
+    <div style="margin:auto; width:90%; height:auto; max-width:600px">
+        <br>
+    <center>
+    <img style="margin:auto; width:90%; height:auto; max-width:600px" src="{{url_for('static', filename='img/capoverview.jpg')}}" alt="Cipher Verification Workflow">
+    </center>
+    <br>
+    Cipher Audit Platform (CAP) provides a set of functionality to evaluate and quantify the resilience of block cipher implementations in C, against Differential Fault Analysis Attacks, and also to check for zeroization of sensitive key material after their effective use. 
 
-    <h3> Overview </h3>
-    Cipher Audit Platform enables evaluating the fault attack resistance and zeroization of block cipher implementations written in C programming language.
+    <br>
+    <br>
+The above diagram shows the overall planned workflow when using the CAP tool for evaluating resistance against Differential Fault Analysis (DFA) attacks. A cipher implementation along with a Cipher specification should be provided as input. The cipher specification is used to identify round operations vulnerable to DFA attacks, and also for generating a golden reference C implementation. The reference implementation is mapped with the given implementation, and the vulnerable operations in the implementation are identified. The tool also provides a fault simulation module which injects random faults in the program during execution to identify instructions in the binary which are more susceptible to DFA attacks. The output from the tool is the implementation exploitability report that highlights the possible locations which the tool identifies as vulnerable. The zeroization module (not shown in the diagram) takes an annotated C file as input and outputs error messages if it identifies leakage of sensitive material in memory.
 
-    <h3> 1. Golden reference C synthesis </h3>
+    <br>
+    <h3> Currently integrated modules </h3>
+    1. Reference C Implementation synthesis <br>
+    2. Fault injection simulation <br>
+    3. Zeroization module <br>
+    <br>
 
-
-    <h3> 2. Fault injection simulation </h3>
-
-
-    <h3> 3. Zeroization checks </h3>
-
-
+    </div>
 </div>
-
-
-
 {% endblock body_content %}

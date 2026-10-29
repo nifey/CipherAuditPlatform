@@ -14,11 +14,16 @@
 
         body {
             font-family: system-ui, -apple-system, sans-serif;
-            overflow: hidden; /* Prevents scrollbars while dragging */
             background-color: #1e1e1e;
         }
 
         /* Layout Container */
+        .center-container {
+            height: calc(100vh - 50px);
+            width: 90vw;
+            margin:auto;
+        }
+
         .editor-container {
             display: flex;
             flex-direction: row;
@@ -170,7 +175,7 @@
     <!-- Top Menu Bar -->
     <div class="menu-bar">
         <div class="menu-group">
-            <button style="background-color:#d17146; color:#fdf6e3"><b>Cipher Audit Platform</b></button>
+            <a href="/"><button style="background-color:#d17146; color:#fdf6e3"><b>Cipher Audit Platform</b></button></a>
             <a href="/csl"><button>CSL Synthesis</button></a>
             <a href="/faultsimulation"><button>Fault simulation</button></a>
             <a href="/zeroization"><button>Zeroization check</button></a>
